@@ -70,6 +70,75 @@
 .page-wrap { max-width: var(--page-max); margin: 0 auto; padding: 0 var(--page-pad); }
 .page-section { padding: 40px 0; }
 
+/* ── Page Transition Loader ─────────────────────────────────────────────── */
+body.page-loading {
+  overflow: hidden;
+}
+.page-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.28s ease, visibility 0.28s ease;
+}
+.page-loader.is-visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+.page-loader__backdrop {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at top right, rgba(222, 110, 58, 0.2), transparent 24%),
+    radial-gradient(circle at bottom left, rgba(27, 130, 125, 0.18), transparent 26%),
+    rgba(247, 247, 245, 0.92);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+.page-loader__panel {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 24px;
+  text-align: center;
+}
+.page-loader__spinner {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 4px solid rgba(17, 17, 16, 0.08);
+  border-top-color: var(--accent);
+  border-right-color: var(--ink);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.08);
+  animation: spin 0.9s linear infinite;
+}
+.page-loader__copy {
+  display: grid;
+  gap: 6px;
+}
+.page-loader__eyebrow {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.page-loader__copy h2 {
+  font-size: clamp(28px, 4vw, 40px);
+  letter-spacing: -0.05em;
+}
+.page-loader__copy p:last-child {
+  color: var(--ink-2);
+  font-size: 15px;
+}
+
 /* ── Scroll FAB (down/up toggle) ─────────────────────────────────────────── */
 .scroll-fab {
   position: fixed;

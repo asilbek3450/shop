@@ -1,5 +1,5 @@
 /**
- * NEXUS — Shared JavaScript Utilities
+ * uzshop — Shared JavaScript Utilities
  * Used across all pages
  */
 
@@ -12,6 +12,156 @@ var ROUTES = window.NEXUS_ROUTES || {
   profile: '/profile/',
   confirmation: '/confirmation/',
 };
+
+var PAGE_TRANSITION_KEY = 'uzshop_page_transition';
+var PAGE_TRANSITION_MIN_MS = 1000;
+
+function normalizePathname(value) {
+  if (!value) return '/';
+  return value.replace(/\/+$/, '') || '/';
+}
+
+function getPathnameFromUrl(url) {
+  try {
+    return normalizePathname(new URL(url, window.location.origin).pathname);
+  } catch (e) {
+    return normalizePathname(String(url || ''));
+  }
+}
+
+function isPageEndpointChange(url) {
+  var currentPath = normalizePathname(window.location.pathname);
+  var nextPath = getPathnameFromUrl(url);
+  return currentPath !== nextPath;
+}
+
+function ensurePageLoader() {
+  var existing = document.getElementById('page-transition-loader');
+  if (existing) return existing;
+  var loader = document.createElement('div');
+  loader.id = 'page-transition-loader';
+  loader.className = 'page-loader';
+  loader.setAttribute('aria-hidden', 'true');
+  loader.innerHTML =
+    '<div class="page-loader__backdrop"></div>' +
+    '<div class="page-loader__panel">' +
+      '<div class="page-loader__spinner"></div>' +
+      '<div class="page-loader__copy">' +
+        '<p class="page-loader__eyebrow">uzshop</p>' +
+        '<h2>Sahifa tayyorlanmoqda</h2>' +
+        '<p>Premium storefront yuklanmoqda...</p>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(loader);
+  return loader;
+}
+
+function showPageLoader() {
+  var loader = ensurePageLoader();
+  loader.classList.add('is-visible');
+  document.body.classList.add('page-loading');
+}
+
+function hidePageLoader() {
+  var loader = document.getElementById('page-transition-loader');
+  if (loader) loader.classList.remove('is-visible');
+  document.body.classList.remove('page-loading');
+}
+
+function persistPageTransition(url) {
+  try {
+    sessionStorage.setItem(PAGE_TRANSITION_KEY, JSON.stringify({
+      targetPath: getPathnameFromUrl(url),
+      startedAt: Date.now(),
+    }));
+  } catch (e) {}
+}
+
+function clearPageTransition() {
+  try { sessionStorage.removeItem(PAGE_TRANSITION_KEY); } catch (e) {}
+}
+
+function navigateWithLoader(url) {
+  if (!url) return;
+  if (!isPageEndpointChange(url)) {
+    window.location.href = url;
+    return;
+  }
+  persistPageTransition(url);
+  showPageLoader();
+  setTimeout(function() {
+    window.location.href = url;
+  }, 80);
+}
+
+function restorePendingPageTransition() {
+  var raw = null;
+  try { raw = sessionStorage.getItem(PAGE_TRANSITION_KEY); } catch (e) {}
+  if (!raw) return;
+
+  var payload = null;
+  try { payload = JSON.parse(raw); } catch (e) {
+    clearPageTransition();
+    return;
+  }
+
+  if (!payload || payload.targetPath !== normalizePathname(window.location.pathname)) {
+    clearPageTransition();
+    return;
+  }
+
+  showPageLoader();
+  var elapsed = Date.now() - Number(payload.startedAt || 0);
+  var wait = Math.max(0, PAGE_TRANSITION_MIN_MS - elapsed);
+  window.setTimeout(function() {
+    hidePageLoader();
+    clearPageTransition();
+  }, wait);
+}
+
+function installPageTransitionLinks() {
+  document.addEventListener('click', function(event) {
+    if (event.defaultPrevented) return;
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+
+    var anchor = event.target.closest && event.target.closest('a[href]');
+    if (!anchor) return;
+    if (anchor.target && anchor.target !== '_self') return;
+    if (anchor.hasAttribute('download')) return;
+
+    var href = anchor.getAttribute('href');
+    if (!href || href.charAt(0) === '#') return;
+
+    var resolved = null;
+    try {
+      resolved = new URL(anchor.href, window.location.origin);
+    } catch (e) {
+      return;
+    }
+
+    if (resolved.origin !== window.location.origin) return;
+    if (!isPageEndpointChange(resolved.href)) return;
+
+    event.preventDefault();
+    navigateWithLoader(resolved.href);
+  }, true);
+}
+
+function initPageTransitions() {
+  if (!document.body) return;
+  ensurePageLoader();
+  installPageTransitionLinks();
+  restorePendingPageTransition();
+  window.addEventListener('pageshow', function() {
+    if (!sessionStorage.getItem(PAGE_TRANSITION_KEY)) hidePageLoader();
+  });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initPageTransitions, { once: true });
+} else {
+  initPageTransitions();
+}
 
 function buildShopUrl(category, query) {
   var params = new URLSearchParams();
@@ -151,8 +301,11 @@ function isRemoteImage(imgKey) {
   return typeof imgKey === 'string' && /^https?:\/\//i.test(imgKey);
 }
 
-function productImageSVG(imgKey, size) {
+function productImageSVG(imgKey, size, altText) {
   size = size || 300;
+  if (isRemoteImage(imgKey)) {
+    return '<img src="' + escapeHtml(imgKey) + '" alt="' + escapeHtml(altText || 'Product image') + '" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block"/>';
+  }
   var c = IMG_CONFIGS[imgKey] || { bg:'#f0f0f0', stripe:'#e0e0e0', label: imgKey || '?' };
   var textFill = c.dark ? '#666' : '#aaa';
   var stripes = '';
@@ -163,10 +316,7 @@ function productImageSVG(imgKey, size) {
 }
 
 function renderProductImageMarkup(imgKey, size, altText) {
-  if (isRemoteImage(imgKey)) {
-    return '<img src="' + escapeHtml(imgKey) + '" alt="' + escapeHtml(altText || 'Product image') + '" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block"/>';
-  }
-  return productImageSVG(imgKey, size);
+  return productImageSVG(imgKey, size, altText);
 }
 
 // ── Format helpers ────────────────────────────────────────────────────────
@@ -219,21 +369,21 @@ function buildNavbar(activePage) {
     + '<button class="navbar-hamburger" id="hamburger-btn" aria-label="Menu">'
     + '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 4h14M2 9h14M2 14h14" stroke="var(--ink)" stroke-width="1.8" stroke-linecap="round"/></svg>'
     + '</button>'
-    + '<a href="' + ROUTES.index + '" class="navbar-logo">NEX<span>US</span></a>'
+    + '<a href="' + ROUTES.index + '" class="navbar-logo">uz<span>shop</span></a>'
     + '<div class="navbar-cats">' + catsHTML + '</div>'
     + '<div class="navbar-spacer"></div>'
     + '<div class="navbar-search">'
     + '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="4.5" stroke="var(--ink-3)" stroke-width="1.5"/><path d="M10.5 10.5L14 14" stroke="var(--ink-3)" stroke-width="1.5" stroke-linecap="round"/></svg>'
     + '<input type="text" placeholder="Qidirish..." id="nav-search"/>'
     + '</div>'
-    + '<button class="navbar-btn" onclick="window.location=\'' + ROUTES.wishlist + '\'" title="Wishlist">'
+    + '<button class="navbar-btn" onclick="navigateWithLoader(\'' + ROUTES.wishlist + '\')" title="Wishlist">'
     + '<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 16s-7-4.5-7-9a4 4 0 0 1 7-2.65A4 4 0 0 1 17 7c0 4.5-7 9-7 9z" stroke="var(--ink)" stroke-width="1.5" stroke-linejoin="round"/></svg>'
     + '</button>'
-    + '<button class="navbar-btn" id="nav-cart-btn" onclick="window.location=\'' + ROUTES.checkout + '\'" title="Savat">'
+    + '<button class="navbar-btn" id="nav-cart-btn" onclick="navigateWithLoader(\'' + ROUTES.checkout + '\')" title="Savat">'
     + '<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 3h1.5l2.5 9h7l2-6H6.5" stroke="var(--ink)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="16" r="1.2" fill="var(--ink)"/><circle cx="14" cy="16" r="1.2" fill="var(--ink)"/></svg>'
     + '<span class="cart-badge" id="nav-cart-badge" style="' + cartBadgeStyle + '">' + count + '</span>'
     + '</button>'
-    + '<button class="navbar-btn dark" onclick="window.location=\'' + ROUTES.profile + '\'" title="Profil">'
+    + '<button class="navbar-btn dark" onclick="navigateWithLoader(\'' + ROUTES.profile + '\')" title="Profil">'
     + '<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="3" stroke="#fff" stroke-width="1.5"/><path d="M3 17c0-3.3 3.1-6 7-6s7 2.7 7 6" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg>'
     + '</button>'
     + '</nav>'
@@ -244,7 +394,7 @@ function buildNavbar(activePage) {
     + '<div class="mobile-menu-backdrop" id="menu-backdrop"></div>'
     + '<div class="mobile-menu-panel">'
     + '<div class="mobile-menu-header">'
-    + '<span style="font-family:var(--font-mono);font-weight:600;font-size:18px">NEX<span style="color:var(--accent)">US</span></span>'
+    + '<span style="font-family:var(--font-mono);font-weight:600;font-size:18px">uz<span style="color:var(--accent)">shop</span></span>'
     + '<button onclick="closeMobileMenu()" style="width:32px;height:32px;border-radius:16px;background:var(--bg);display:flex;align-items:center;justify-content:center;border:none;cursor:pointer">'
     + '<svg width="14" height="14" viewBox="0 0 14 14"><path d="M2 2l10 10M12 2L2 12" stroke="var(--ink-2)" stroke-width="1.5" stroke-linecap="round"/></svg>'
     + '</button>'
@@ -278,7 +428,7 @@ function buildNavbar(activePage) {
     + '<div class="bottom-nav-items">'
     + _bnItem(ROUTES.index, 'index', page, 'Bosh', '<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 9l7-6 7 6v9H13v-5H7v5H3V9z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>')
     + _bnItem(ROUTES.shop, 'shop', page, 'Do\'kon', '<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="5" width="16" height="12" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M2 9h16" stroke="currentColor" stroke-width="1.5"/><path d="M6 3l2 2M14 3l-2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>')
-    + '<button class="bottom-nav-item' + (page === 'checkout' ? ' active' : '') + '" onclick="window.location=\'' + ROUTES.checkout + '\'" style="position:relative">'
+    + '<button class="bottom-nav-item' + (page === 'checkout' ? ' active' : '') + '" onclick="navigateWithLoader(\'' + ROUTES.checkout + '\')" style="position:relative">'
     + '<div style="width:48px;height:48px;border-radius:24px;background:var(--ink);display:flex;align-items:center;justify-content:center;margin-top:-20px;box-shadow:0 4px 16px rgba(0,0,0,0.2)">'
     + '<svg width="22" height="22" viewBox="0 0 20 20" fill="none"><path d="M3 3h1.5l2.5 9h7l2-6H6.5" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="16" r="1.2" fill="#fff"/><circle cx="14" cy="16" r="1.2" fill="#fff"/></svg>'
     + '</div>'
@@ -313,7 +463,7 @@ function buildNavbar(activePage) {
   if (mobileSearch) {
     mobileSearch.addEventListener('keydown', function(e) {
       if (e.key === 'Enter' && mobileSearch.value.trim()) {
-        window.location = buildShopUrl(null, mobileSearch.value.trim());
+        navigateWithLoader(buildShopUrl(null, mobileSearch.value.trim()));
       }
     });
   }
@@ -323,7 +473,7 @@ function buildNavbar(activePage) {
   if (searchInput) {
     searchInput.addEventListener('keydown', function(e) {
       if (e.key === 'Enter' && searchInput.value.trim()) {
-        window.location = buildShopUrl(null, searchInput.value.trim());
+        navigateWithLoader(buildShopUrl(null, searchInput.value.trim()));
       }
     });
   }
@@ -407,30 +557,47 @@ function closeMobileMenu() {
 // ── Footer builder ────────────────────────────────────────────────────────
 
 function buildFooter() {
-  var links1 = ['Mahsulotlar','Aksiyalar','Brendlar','Yangiliklar'];
-  var links2 = ['Biz haqimizda','Karyera','Blog','Hamkorlar'];
-  var links3 = ['Savol-javob','Qaytarish','Kuzatish','Aloqa'];
+  var links1 = [
+    { label: 'Mahsulotlar', href: ROUTES.shop },
+    { label: 'Trend kolleksiya', href: ROUTES.index + '#featured' },
+    { label: 'Istaklar', href: ROUTES.wishlist },
+    { label: 'Profil', href: ROUTES.profile }
+  ];
+  var links2 = [
+    { label: 'Global yetkazish', href: ROUTES.shop },
+    { label: 'Premium brendlar', href: ROUTES.shop },
+    { label: 'Yangi kelganlar', href: ROUTES.index + '#featured' },
+    { label: 'Checkout', href: ROUTES.checkout }
+  ];
+  var links3 = [
+    { label: 'Savol-javob', href: ROUTES.profile },
+    { label: 'Buyurtma kuzatish', href: ROUTES.confirmation },
+    { label: 'Qaytarish', href: ROUTES.checkout },
+    { label: 'Bog‘lanish', href: ROUTES.profile }
+  ];
 
   function linkList(arr) {
-    return arr.map(function(l){ return '<a href="#" style="font-size:14px;color:var(--ink-2);">' + l + '</a>'; }).join('');
+    return arr.map(function(link){
+      return '<a href="' + link.href + '" style="font-size:14px;color:var(--ink-2);">' + link.label + '</a>';
+    }).join('');
   }
 
   document.body.insertAdjacentHTML('beforeend',
     '<footer style="border-top:1px solid var(--border);margin-top:auto;">'
     + '<div class="page-wrap footer-grid" style="padding-top:40px;padding-bottom:40px;display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:40px;">'
-    + '<div><div style="font-family:var(--font-mono);font-size:20px;font-weight:500;margin-bottom:12px;">NEX<span style="color:var(--accent)">US</span></div>'
-    + '<p style="font-size:14px;color:var(--ink-3);line-height:1.7;max-width:280px;">O\'zbekistonning eng zamonaviy premium onlayn do\'koni. Sifat va tezlik biz bilan.</p></div>'
+    + '<div><div style="font-family:var(--font-mono);font-size:20px;font-weight:500;margin-bottom:12px;">uz<span style="color:var(--accent)">shop</span></div>'
+    + '<p style="font-size:14px;color:var(--ink-3);line-height:1.7;max-width:320px;">uzshop global did, ishonchli servis va tezkor xarid oqimini birlashtirgan zamonaviy online do\'kon.</p></div>'
     + '<div><p style="font-size:11px;font-weight:600;letter-spacing:1px;color:var(--ink-3);text-transform:uppercase;margin-bottom:14px;">Havolalar</p>'
     + '<div style="display:flex;flex-direction:column;gap:8px;">' + linkList(links1) + '</div></div>'
-    + '<div><p style="font-size:11px;font-weight:600;letter-spacing:1px;color:var(--ink-3);text-transform:uppercase;margin-bottom:14px;">Kompaniya</p>'
+    + '<div><p style="font-size:11px;font-weight:600;letter-spacing:1px;color:var(--ink-3);text-transform:uppercase;margin-bottom:14px;">Savdo</p>'
     + '<div style="display:flex;flex-direction:column;gap:8px;">' + linkList(links2) + '</div></div>'
     + '<div><p style="font-size:11px;font-weight:600;letter-spacing:1px;color:var(--ink-3);text-transform:uppercase;margin-bottom:14px;">Yordam</p>'
     + '<div style="display:flex;flex-direction:column;gap:8px;">' + linkList(links3) + '</div></div>'
     + '</div>'
     + '<div class="divider"></div>'
     + '<div class="page-wrap" style="padding-top:20px;padding-bottom:20px;display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--ink-3);">'
-    + '<span>&#169; ' + new Date().getFullYear() + ' NEXUS. Barcha huquqlar himoyalangan.</span>'
-    + '<span style="font-family:var(--font-mono)">v2.0.1</span>'
+    + '<span>&#169; ' + new Date().getFullYear() + ' uzshop. Barcha huquqlar himoyalangan.</span>'
+    + '<span style="font-family:var(--font-mono)">Copywriter Asilbek Mirolimov</span>'
     + '</div>'
     + '</footer>'
   );

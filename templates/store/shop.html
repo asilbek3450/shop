@@ -305,7 +305,7 @@ function ProductCard({ product, onAddToCart, accentColor, roundness }) {
 
         {/* Quick view */}
         <div style={{position:'absolute',inset:0,display:'flex',alignItems:'flex-end',justifyContent:'center',padding:12,opacity:hovered?1:0,transition:'opacity 0.2s'}}>
-          <button onClick={e => { e.preventDefault(); window.location=`${ROUTES.product}?id=${product.id}`; }} style={{
+          <button onClick={e => { e.preventDefault(); navigateWithLoader(`${ROUTES.product}?id=${product.id}`); }} style={{
             background:'rgba(255,255,255,0.95)',backdropFilter:'blur(10px)',
             color:'var(--ink)',padding:'9px 18px',borderRadius:r,
             fontSize:12,fontWeight:500,boxShadow:'0 4px 12px rgba(0,0,0,0.1)',width:'100%',

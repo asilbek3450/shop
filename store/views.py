@@ -21,11 +21,11 @@ def render_page(request, template_name, title, page_key, extra_context=None):
 
 
 def index(request):
-    return render_page(request, "store/index.html", "NEXUS — Premium Store", "index")
+    return render_page(request, "store/index.html", "uzshop — Global Online Store", "index")
 
 
 def shop(request):
-    return render_page(request, "store/shop.html", "Do'kon — NEXUS", "shop")
+    return render_page(request, "store/shop.html", "Do'kon — uzshop", "shop")
 
 
 def product(request, slug=None):
@@ -33,7 +33,7 @@ def product(request, slug=None):
         product_id=request.GET.get("id"),
         slug=slug or request.GET.get("slug"),
     )
-    title = f"{current_product.name} — NEXUS" if current_product else "Mahsulot — NEXUS"
+    title = f"{current_product.name} — uzshop" if current_product else "Mahsulot — uzshop"
     return render_page(
         request,
         "store/product.html",
@@ -44,18 +44,18 @@ def product(request, slug=None):
 
 
 def checkout(request):
-    return render_page(request, "store/checkout.html", "Xarid — NEXUS", "checkout")
+    return render_page(request, "store/checkout.html", "Xarid — uzshop", "checkout")
 
 
 def wishlist(request):
-    return render_page(request, "store/wishlist.html", "Istaklar — NEXUS", "wishlist")
+    return render_page(request, "store/wishlist.html", "Istaklar — uzshop", "wishlist")
 
 
 def profile(request):
-    return render_page(request, "store/profile.html", "Profil — NEXUS", "profile")
+    return render_page(request, "store/profile.html", "Profil — uzshop", "profile")
 
 
 def confirmation(request):
-    return render_page(request, "store/confirmation.html", "Buyurtma tasdiqlandi — NEXUS", "confirmation")
+    return render_page(request, "store/confirmation.html", "Buyurtma tasdiqlandi — uzshop", "confirmation")
 
 # Create your views here.

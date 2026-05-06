@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
     { name:'Jasur T.',   rating:5, date:'2025-01-15', text:'Allaqachon ikkinchi marta sotib olayapman. Sifat zo\'r!' },
   ];
 
-  document.title = `${product.name} — NEXUS`;
+  document.title = `${product.name} — uzshop`;
 
   document.getElementById('product-page').innerHTML = `
     <!-- Breadcrumb -->
@@ -333,7 +333,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   window.buyNow = function() {
     Cart.add(product, qty);
-    window.location = ROUTES.checkout;
+    navigateWithLoader(ROUTES.checkout);
   };
 });
 </script>

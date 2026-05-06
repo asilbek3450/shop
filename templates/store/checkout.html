@@ -361,7 +361,7 @@ let currentStep = 0;
 let selectedDelivery = 0;
 let deliveryCost = 25000;
 let discount = 0;
-const PROMO_CODES = { 'NEXUS10': 10, 'SPORT20': 20, 'WELCOME15': 15 };
+const PROMO_CODES = { 'UZSHOP10': 10, 'SPORT20': 20, 'WELCOME15': 15 };
 
 document.addEventListener('DOMContentLoaded', () => {
   buildNavbar('checkout');
@@ -597,7 +597,7 @@ async function placeOrder() {
     history.unshift(summary);
     Store.set('orders', history);
     Cart.clear();
-    window.location = ROUTES.confirmation;
+    navigateWithLoader(ROUTES.confirmation);
   } catch (error) {
     showToast(error.message || 'Tarmoq xatosi', 'error');
     btn.disabled = false;
