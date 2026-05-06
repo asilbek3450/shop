@@ -70,6 +70,36 @@
 .page-wrap { max-width: var(--page-max); margin: 0 auto; padding: 0 var(--page-pad); }
 .page-section { padding: 40px 0; }
 
+/* ── Scroll FAB (down/up toggle) ─────────────────────────────────────────── */
+.scroll-fab {
+  position: fixed;
+  right: 20px;
+  bottom: 96px;
+  z-index: 60;
+  width: 48px; height: 48px;
+  border-radius: 24px;
+  background: var(--ink);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  border: none;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease, background 0.2s;
+}
+.scroll-fab.visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.scroll-fab:hover { background: #1a1a1a; }
+.scroll-fab svg { transition: transform 0.25s var(--ease-spring); }
+@media (min-width: 769px) {
+  .scroll-fab { bottom: 28px; right: 28px; }
+}
+
 /* ── Buttons ─────────────────────────────────────────────────────────────── */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;

@@ -327,12 +327,71 @@ function buildNavbar(activePage) {
       }
     });
   }
+
+  buildScrollFab();
 }
 
 function _bnItem(href, itemKey, currentPage, label, icon) {
   var isActive = currentPage === itemKey;
   return '<a href="' + href + '" class="bottom-nav-item' + (isActive ? ' active' : '') + '">'
     + icon + '<span>' + label + '</span></a>';
+}
+
+function buildScrollFab() {
+  if (document.getElementById('scroll-fab')) return;
+  var fab = document.createElement('button');
+  fab.id = 'scroll-fab';
+  fab.className = 'scroll-fab';
+  fab.setAttribute('aria-label', 'Scroll');
+  fab.innerHTML = scrollFabIcon('down');
+  document.body.appendChild(fab);
+
+  var mode = 'down';
+
+  function setMode(next) {
+    if (next === mode) return;
+    mode = next;
+    fab.innerHTML = scrollFabIcon(mode);
+    fab.setAttribute('aria-label', mode === 'up' ? 'Tepaga' : 'Pastga');
+  }
+
+  function update() {
+    var doc = document.documentElement;
+    var max = Math.max(0, doc.scrollHeight - window.innerHeight);
+    var scrolled = window.scrollY || window.pageYOffset || 0;
+    if (max < 240) {
+      fab.classList.remove('visible');
+      return;
+    }
+    fab.classList.add('visible');
+    setMode(scrolled > max - 120 ? 'up' : 'down');
+  }
+
+  fab.addEventListener('click', function() {
+    if (mode === 'up') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+    }
+  });
+
+  window.addEventListener('scroll', update, { passive: true });
+  window.addEventListener('resize', update);
+  // Re-check after layout settles (React mounts, late-loaded images, etc.)
+  setTimeout(update, 200);
+  setTimeout(update, 800);
+  update();
+}
+
+function scrollFabIcon(mode) {
+  if (mode === 'up') {
+    return '<svg width="20" height="20" viewBox="0 0 20 20" fill="none">'
+      + '<path d="M10 15V5M5 10l5-5 5 5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
+      + '</svg>';
+  }
+  return '<svg width="20" height="20" viewBox="0 0 20 20" fill="none">'
+    + '<path d="M10 5v10M5 10l5 5 5-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '</svg>';
 }
 
 function openMobileMenu() {

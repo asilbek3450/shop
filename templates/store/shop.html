@@ -375,6 +375,57 @@ function ListCard({ product, onAddToCart, accentColor, roundness }) {
   );
 }
 
+/* ── Pagination ──────────────────────────────────────────────────────────── */
+function Pagination({ currentPage, totalPages, onPageChange }) {
+  if (totalPages <= 1) return null;
+  const win = 2;
+  const start = Math.max(1, currentPage - win);
+  const end = Math.min(totalPages, currentPage + win);
+  const pages = [];
+  for (let i = start; i <= end; i++) pages.push(i);
+
+  const btn = (active, disabled) => ({
+    minWidth: 36, height: 36, padding: '0 12px',
+    borderRadius: 10,
+    background: active ? 'var(--ink)' : 'var(--surface)',
+    color: active ? '#fff' : 'var(--ink)',
+    border: '1px solid var(--border)',
+    fontSize: 14, fontWeight: 500,
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    opacity: disabled ? 0.4 : 1,
+    transition: 'all 0.15s',
+  });
+
+  return (
+    <div style={{display:'flex',justifyContent:'center',alignItems:'center',gap:6,marginTop:32,flexWrap:'wrap'}}>
+      <button style={btn(false, currentPage === 1)} disabled={currentPage === 1}
+        onClick={() => onPageChange(currentPage - 1)}>‹</button>
+
+      {start > 1 && (
+        <>
+          <button style={btn(false, false)} onClick={() => onPageChange(1)}>1</button>
+          {start > 2 && <span style={{color:'var(--ink-3)',padding:'0 4px'}}>…</span>}
+        </>
+      )}
+
+      {pages.map(page => (
+        <button key={page} style={btn(page === currentPage, false)}
+          onClick={() => onPageChange(page)}>{page}</button>
+      ))}
+
+      {end < totalPages && (
+        <>
+          {end < totalPages - 1 && <span style={{color:'var(--ink-3)',padding:'0 4px'}}>…</span>}
+          <button style={btn(false, false)} onClick={() => onPageChange(totalPages)}>{totalPages}</button>
+        </>
+      )}
+
+      <button style={btn(false, currentPage === totalPages)} disabled={currentPage === totalPages}
+        onClick={() => onPageChange(currentPage + 1)}>›</button>
+    </div>
+  );
+}
+
 /* ── Main App ────────────────────────────────────────────────────────────── */
 function App() {
   const { TweaksPanel, TweakSection, TweakToggle, TweakColor, TweakRadio, useTweaks } = window;
@@ -395,6 +446,8 @@ function App() {
   const [selectedRating, setSelectedRating] = useState(null);
   const [selectedSizes, setSelectedSizes] = useState([]);
   const [sortBy, setSortBy] = useState('popular');
+  const [currentPage, setCurrentPage] = useState(1);
+  const PER_PAGE = 40;
   const productsRef = useRef(null);
 
   // Sync cart badge with shared Cart util
@@ -412,6 +465,13 @@ function App() {
 
   const CATS = ['Hammasi', ...CATEGORIES.map(category => category.name)];
 
+  // Reset to first page whenever any filter / sort changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeCat, search, priceRange[1], sortBy,
+      selectedCategories.length, selectedSubcategories.length,
+      selectedRating, selectedSizes.length]);
+
   const filtered = PRODUCTS.filter(p => {
     if (activeCat !== 'Hammasi' && p.category !== activeCat) return false;
     if (search && !p.name.toLowerCase().includes(search.toLowerCase()) && !p.brand.toLowerCase().includes(search.toLowerCase())) return false;
@@ -427,6 +487,20 @@ function App() {
     if (sortBy==='rating') return b.rating-a.rating;
     return b.reviews-a.reviews;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
+  const safePage = Math.min(currentPage, totalPages);
+  const pageStart = (safePage - 1) * PER_PAGE;
+  const paginated = filtered.slice(pageStart, pageStart + PER_PAGE);
+
+  function changePage(page) {
+    setCurrentPage(page);
+    const el = productsRef.current;
+    if (el) {
+      const y = el.getBoundingClientRect().top + window.scrollY - 80;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    }
+  }
 
   return (
     <>
@@ -483,7 +557,9 @@ function App() {
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:20,flexWrap:'wrap',gap:8}}>
             <h2 style={{fontSize:20,fontWeight:600}}>
               {activeCat === 'Hammasi' ? 'Barcha mahsulotlar' : activeCat}
-              <span style={{fontSize:14,color:'var(--ink-3)',fontWeight:400,marginLeft:8}}>({filtered.length})</span>
+              <span style={{fontSize:14,color:'var(--ink-3)',fontWeight:400,marginLeft:8}}>
+                ({filtered.length}{totalPages > 1 ? `, sahifa ${safePage}/${totalPages}` : ''})
+              </span>
             </h2>
             <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
               {/* View toggle */}
@@ -513,16 +589,24 @@ function App() {
           {/* Grid or List */}
           {tweaks.showGrid ? (
             <div className="product-grid" style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(210px,1fr))',gap:16}}>
-              {filtered.map(p => (
+              {paginated.map(p => (
                 <ProductCard key={p.id} product={p} onAddToCart={addToCart} accentColor={tweaks.accentColor} roundness={tweaks.roundness}/>
               ))}
             </div>
           ) : (
             <div style={{display:'flex',flexDirection:'column',gap:10}}>
-              {filtered.map(p => (
+              {paginated.map(p => (
                 <ListCard key={p.id} product={p} onAddToCart={addToCart} accentColor={tweaks.accentColor} roundness={tweaks.roundness}/>
               ))}
             </div>
+          )}
+
+          <Pagination currentPage={safePage} totalPages={totalPages} onPageChange={changePage}/>
+
+          {filtered.length > 0 && (
+            <p style={{textAlign:'center',marginTop:12,fontSize:13,color:'var(--ink-3)'}}>
+              {pageStart + 1}–{Math.min(pageStart + PER_PAGE, filtered.length)} / {filtered.length} mahsulot
+            </p>
           )}
 
           {filtered.length === 0 && (
@@ -552,11 +636,9 @@ function App() {
   );
 }
 
-// Mount navbar via vanilla JS (not React) so it works with shared.js
-window.addEventListener('DOMContentLoaded', () => {
-  buildNavbar('shop');
-  buildFooter();
-});
+// Babel-standalone runs after DOMContentLoaded, so call directly.
+buildNavbar('shop');
+buildFooter();
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(<App/>);
