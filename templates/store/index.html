@@ -1,0 +1,314 @@
+{% extends "store/base.html" %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/shop.css' %}">
+  <style>
+    body { min-height: 100vh; }
+    .home-shell { padding-bottom: 96px; }
+    .home-hero {
+      position: relative;
+      overflow: hidden;
+      margin-top: 28px;
+      padding: 88px 64px;
+      border-radius: 32px;
+      background:
+        radial-gradient(circle at top right, rgba(217, 119, 87, 0.18), transparent 28%),
+        linear-gradient(135deg, #111110 0%, #1d1b19 62%, #2a241f 100%);
+      color: #fff;
+      box-shadow: var(--shadow-xl);
+    }
+    .home-hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
+      gap: 32px;
+      align-items: center;
+      position: relative;
+      z-index: 1;
+    }
+    .hero-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .hero-title {
+      margin-top: 20px;
+      font-size: clamp(42px, 6vw, 78px);
+      line-height: 1;
+      letter-spacing: -0.06em;
+      max-width: 9ch;
+      text-wrap: balance;
+    }
+    .hero-copy {
+      margin-top: 20px;
+      max-width: 560px;
+      font-size: 18px;
+      line-height: 1.7;
+      color: rgba(255, 255, 255, 0.72);
+    }
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 28px;
+    }
+    .hero-metrics {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 36px;
+    }
+    .hero-metric {
+      padding: 18px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .hero-card {
+      padding: 22px;
+      border-radius: 28px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(12px);
+    }
+    .hero-card-stage {
+      aspect-ratio: 1;
+      overflow: hidden;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.94);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    }
+    .home-section { margin-top: 72px; }
+    .section-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .section-head p { color: var(--ink-3); max-width: 520px; line-height: 1.7; }
+    .category-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+    }
+    .category-card {
+      padding: 24px;
+      border-radius: 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      transition: transform 0.25s var(--ease-out), box-shadow 0.25s var(--ease-out);
+    }
+    .category-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+    .featured-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 18px;
+    }
+    .featured-card {
+      overflow: hidden;
+      border-radius: 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      transition: transform 0.3s var(--ease-out), box-shadow 0.3s var(--ease-out);
+    }
+    .featured-card:hover { transform: translateY(-6px); box-shadow: var(--shadow-lg); }
+    .featured-media { aspect-ratio: 1; background: var(--bg); }
+    .benefits-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+    .benefit-card {
+      padding: 24px;
+      border-radius: 24px;
+      background: linear-gradient(180deg, #ffffff, #f3f1eb);
+      border: 1px solid var(--border);
+    }
+    .cta-strip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 28px 32px;
+      border-radius: 28px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+    }
+    @media (max-width: 1100px) {
+      .home-hero-grid,
+      .category-grid,
+      .featured-grid,
+      .benefits-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 720px) {
+      .home-hero { padding: 48px 24px; border-radius: 24px; }
+      .home-hero-grid,
+      .category-grid,
+      .featured-grid,
+      .benefits-grid,
+      .hero-metrics { grid-template-columns: 1fr; }
+      .cta-strip { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <main class="page-wrap home-shell">
+    <section class="home-hero">
+      <div class="home-hero-grid">
+        <div>
+          <span class="hero-kicker">Premium commerce experience</span>
+          <h1 class="hero-title">Kelajak dididagi onlayn do'kon</h1>
+          <p class="hero-copy">
+            NEXUS endi Django arxitekturasi bilan yig‘ildi: toza template qatlam, markazlashgan static assetlar va tez ishlaydigan premium storefront tajribasi.
+          </p>
+          <div class="hero-actions">
+            <a href="{% url 'shop' %}" class="btn btn-primary btn-lg">Do'konga o'tish</a>
+            <a href="#featured" class="btn btn-secondary btn-lg">Tanlangan mahsulotlar</a>
+          </div>
+          <div class="hero-metrics">
+            <div class="hero-metric">
+              <p style="font-size: 28px; font-weight: 700; letter-spacing: -0.04em;">8+</p>
+              <p style="margin-top: 6px; color: rgba(255,255,255,0.68);">premium toifa</p>
+            </div>
+            <div class="hero-metric">
+              <p style="font-size: 28px; font-weight: 700; letter-spacing: -0.04em;">24/7</p>
+              <p style="margin-top: 6px; color: rgba(255,255,255,0.68);">tezkor savdo oqimi</p>
+            </div>
+            <div class="hero-metric">
+              <p style="font-size: 28px; font-weight: 700; letter-spacing: -0.04em;">100%</p>
+              <p style="margin-top: 6px; color: rgba(255,255,255,0.68);">template/static tayyor</p>
+            </div>
+          </div>
+        </div>
+        <div class="hero-card">
+          <div class="hero-card-stage" id="hero-product-stage"></div>
+          <div style="display:flex;justify-content:space-between;gap:16px;margin-top:16px;align-items:center">
+            <div>
+              <p style="font-size:12px;color:rgba(255,255,255,0.58)">Hafta tanlovi</p>
+              <p style="margin-top:4px;font-size:18px;font-weight:600">AirPods Pro 2</p>
+            </div>
+            <a href="{% url 'product' %}?id=1" class="btn btn-secondary btn-sm">Ko'rish</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="home-section">
+      <div class="section-head">
+        <div>
+          <h2 style="font-size:32px;font-weight:700;letter-spacing:-0.05em">Asosiy kategoriyalar</h2>
+          <p>Har bir kategoriya premium mahsulot tanlovi, tez topish va aniq call-to-action bilan qayta yig‘ildi.</p>
+        </div>
+      </div>
+      <div class="category-grid">
+        <a class="category-card" href="{% url 'shop' %}?cat=Elektronika">
+          <p style="font-size:13px;color:var(--ink-3)">01</p>
+          <h3 style="margin-top:14px;font-size:22px;font-weight:600">Elektronika</h3>
+          <p style="margin-top:10px;color:var(--ink-2);line-height:1.7">Flagship qurilmalar, audio va noutbuklar.</p>
+        </a>
+        <a class="category-card" href="{% url 'shop' %}?cat=Sport">
+          <p style="font-size:13px;color:var(--ink-3)">02</p>
+          <h3 style="margin-top:14px;font-size:22px;font-weight:600">Sport</h3>
+          <p style="margin-top:10px;color:var(--ink-2);line-height:1.7">Yugurish, fitness va kundalik performance uchun.</p>
+        </a>
+        <a class="category-card" href="{% url 'shop' %}?cat=Kiyim">
+          <p style="font-size:13px;color:var(--ink-3)">03</p>
+          <h3 style="margin-top:14px;font-size:22px;font-weight:600">Kiyim</h3>
+          <p style="margin-top:10px;color:var(--ink-2);line-height:1.7">Minimalist fasonlar va moslashuvchan kapsula buyumlar.</p>
+        </a>
+        <a class="category-card" href="{% url 'shop' %}?cat=Uy%20va%20Bog">
+          <p style="font-size:13px;color:var(--ink-3)">04</p>
+          <h3 style="margin-top:14px;font-size:22px;font-weight:600">Uy va Bog'</h3>
+          <p style="margin-top:10px;color:var(--ink-2);line-height:1.7">Zamonaviy interyer va qulay yashash yechimlari.</p>
+        </a>
+      </div>
+    </section>
+
+    <section class="home-section" id="featured">
+      <div class="section-head">
+        <div>
+          <h2 style="font-size:32px;font-weight:700;letter-spacing:-0.05em">Tanlangan mahsulotlar</h2>
+          <p>Bu blok JavaScript orqali `PRODUCTS` datasidan to‘ldiriladi, shuning uchun landing va shop bir xil manbadan oziqlanadi.</p>
+        </div>
+        <a href="{% url 'shop' %}" class="btn btn-ghost">Barchasini ko'rish</a>
+      </div>
+      <div class="featured-grid" id="featured-products"></div>
+    </section>
+
+    <section class="home-section">
+      <div class="section-head">
+        <div>
+          <h2 style="font-size:32px;font-weight:700;letter-spacing:-0.05em">Nega aynan shu versiya</h2>
+          <p>Loyiha endi Django standardlariga yaqinroq: qayta ishlatiladigan layout, markazlashgan route va server orqali ishlaydigan sahifalar.</p>
+        </div>
+      </div>
+      <div class="benefits-grid">
+        <div class="benefit-card">
+          <p style="font-size:12px;color:var(--ink-3);text-transform:uppercase;letter-spacing:0.08em">Template</p>
+          <h3 style="margin-top:12px;font-size:22px;font-weight:600">`base.html` markazi</h3>
+          <p style="margin-top:12px;color:var(--ink-2);line-height:1.7">Umumiy CSS, route mapping va shared scriptlar bitta bazaviy layoutda jamlandi.</p>
+        </div>
+        <div class="benefit-card">
+          <p style="font-size:12px;color:var(--ink-3);text-transform:uppercase;letter-spacing:0.08em">Static</p>
+          <h3 style="margin-top:12px;font-size:22px;font-weight:600">Assetlar tartiblandi</h3>
+          <p style="margin-top:12px;color:var(--ink-2);line-height:1.7">Barcha CSS, JS va tweak panel fayllari Django `static/` ichiga ko‘chirildi.</p>
+        </div>
+        <div class="benefit-card">
+          <p style="font-size:12px;color:var(--ink-3);text-transform:uppercase;letter-spacing:0.08em">UX</p>
+          <h3 style="margin-top:12px;font-size:22px;font-weight:600">Landing yakunlandi</h3>
+          <p style="margin-top:12px;color:var(--ink-2);line-height:1.7">Root sahifa endi tayyor premium homepage bo‘lib, shopga mantiqiy kirish nuqtasi yaratadi.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="home-section">
+      <div class="cta-strip">
+        <div>
+          <h2 style="font-size:30px;font-weight:700;letter-spacing:-0.04em">Loyiha ishga tayyor</h2>
+          <p style="margin-top:8px;color:var(--ink-2);line-height:1.7">Hozirning o‘zida `runserver` bilan ochib, root landing va barcha ichki sahifalarni sinash mumkin.</p>
+        </div>
+        <a href="{% url 'shop' %}" class="btn btn-primary btn-lg">Savdoni boshlash</a>
+      </div>
+    </section>
+  </main>
+{% endblock %}
+
+{% block extra_js %}
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      buildNavbar('index');
+      buildFooter();
+
+      const heroStage = document.getElementById('hero-product-stage');
+      if (heroStage) {
+        heroStage.innerHTML = productImageSVG('electronics-airpods', 420);
+      }
+
+      const featured = document.getElementById('featured-products');
+      if (featured) {
+        featured.innerHTML = PRODUCTS.slice(0, 4).map((product) => `
+          <a class="featured-card" href="${ROUTES.product}?id=${product.id}">
+            <div class="featured-media">${productImageSVG(product.img, 280)}</div>
+            <div style="padding:16px 18px 18px">
+              <p style="font-size:12px;color:var(--ink-3)">${product.brand}</p>
+              <h3 style="margin-top:6px;font-size:18px;font-weight:600;line-height:1.35">${product.name}</h3>
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px">
+                <span style="font-family:var(--font-mono);font-size:16px;font-weight:700">${fmtPrice(product.price)}</span>
+                <span class="stars">${renderStars(product.rating)}</span>
+              </div>
+            </div>
+          </a>
+        `).join('');
+      }
+    });
+  </script>
+{% endblock %}

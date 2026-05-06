@@ -1,0 +1,565 @@
+{% extends "store/base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shop.css' %}">
+{% endblock %}
+
+{% block extra_head %}
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="{% static 'js/tweaks-panel.jsx' %}"></script>
+{% endblock %}
+
+{% block content %}
+<div id="root"></div>
+{% endblock %}
+
+{% block extra_js %}
+{% verbatim %}
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+/* ── Placeholder image component ─────────────────────────────────────────── */
+function PImg({ imgKey, size = 300 }) {
+  return <div dangerouslySetInnerHTML={{ __html: renderProductImageMarkup(imgKey, size) }} style={{width:'100%',height:'100%'}}/>;
+}
+
+/* ── Stars ───────────────────────────────────────────────────────────────── */
+function Stars({ rating, size = 12 }) {
+  return (
+    <span className="stars" dangerouslySetInnerHTML={{
+      __html: renderStars(rating, size)
+    }}/>
+  );
+}
+
+/* ── Hero ────────────────────────────────────────────────────────────────── */
+function Hero({ accentColor, heroDark, roundness, onShop }) {
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setTick(n => n + 1), 3500);
+    return () => clearInterval(t);
+  }, []);
+
+  const slides = [
+    { tag: 'Yangi Kolleksiya 2025', title: 'Kelajak\nTexnologiyasi', sub: "Eng zamonaviy gadjetlar va premium mahsulotlar bir joyda." },
+    { tag: 'Maxsus Taklif', title: '40% chegirma\nSport Buyumlar', sub: "Bahorgi mavsum chegirmalari — cheklangan muddat." },
+    { tag: 'Yangi Keldi', title: 'Premium\nLifestyle', sub: "Uyingizni zamonaviy dizayn bilan bezang." },
+  ];
+  const s = slides[tick % slides.length];
+  const r = roundness === 'sharp' ? 8 : roundness === 'pill' ? 32 : 20;
+
+  return (
+    <section className="page-wrap hero-section" style={{paddingTop:24}}>
+      <div className="hero-inner" style={{
+        background: heroDark ? 'var(--ink)' : 'var(--surface)',
+        borderRadius: r,
+        padding:'72px 64px',
+        display:'flex', flexDirection:'column', gap:20,
+        minHeight:420, position:'relative', overflow:'hidden',
+        transition:'background 0.4s',
+      }}>
+        {/* Grid bg */}
+        <svg style={{position:'absolute',inset:0,width:'100%',height:'100%',opacity:0.04,pointerEvents:'none'}} preserveAspectRatio="xMidYMid slice">
+          <defs>
+            <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+              <path d="M 48 0 L 0 0 0 48" fill="none" stroke={heroDark?'#fff':'#000'} strokeWidth="0.5"/>
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#grid)"/>
+        </svg>
+        {/* Blob */}
+        <div style={{position:'absolute',right:-60,top:-60,width:400,height:400,borderRadius:'50%',background:accentColor,opacity:0.12,filter:'blur(80px)',pointerEvents:'none'}}/>
+
+        <span style={{display:'inline-flex',background:accentColor,color:'#fff',borderRadius:20,padding:'5px 14px',fontSize:12,fontWeight:500,letterSpacing:'0.5px',width:'fit-content'}}>{s.tag}</span>
+
+        <h1 style={{fontSize:'clamp(36px,5vw,72px)',fontWeight:600,lineHeight:1.1,color:heroDark?'#fff':'var(--ink)',whiteSpace:'pre-line',letterSpacing:'-1.5px',textWrap:'balance',transition:'color 0.3s'}}>{s.title}</h1>
+
+        <p style={{fontSize:18,color:heroDark?'rgba(255,255,255,0.6)':'var(--ink-2)',maxWidth:480,lineHeight:1.6,transition:'color 0.3s'}}>{s.sub}</p>
+
+        <div style={{display:'flex',gap:12,marginTop:8,alignItems:'center'}}>
+          <button onClick={onShop} className="btn btn-primary" style={{background:accentColor,borderRadius:roundness==='pill'?30:roundness==='sharp'?6:12}}>Xarid qilish →</button>
+          <button className="btn btn-ghost" style={{color:heroDark?'rgba(255,255,255,0.7)':'var(--ink-2)'}}>Batafsil</button>
+        </div>
+
+        <div style={{display:'flex',gap:6,marginTop:'auto',paddingTop:20}}>
+          {slides.map((_,i) => (
+            <button key={i} onClick={() => setTick(i)} style={{
+              width: i===tick%slides.length?24:8, height:8, borderRadius:4,
+              background: heroDark ? (i===tick%slides.length?'#fff':'rgba(255,255,255,0.3)') : (i===tick%slides.length?'var(--ink)':'var(--border)'),
+              transition:'all 0.3s',
+            }}/>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ── Filter Drawer (mobile) ──────────────────────────────────────────────── */
+function FilterDrawer({ priceRange, setPriceRange, selectedCategories, setSelectedCategories, selectedSubcategories, setSelectedSubcategories, selectedRating, setSelectedRating, selectedSizes, setSelectedSizes, accentColor, roundness }) {
+  const [open, setOpen] = useState(false);
+  const maxPrice = Math.max(...PRODUCTS.map(product => product.price), 2000000);
+  const activeCount = selectedCategories.length + selectedSubcategories.length + (selectedRating?1:0) + selectedSizes.length + (priceRange[1] < maxPrice ? 1 : 0);
+
+  return (
+    <>
+      <button className="filter-drawer-toggle" onClick={() => setOpen(true)} style={{marginBottom:12}}>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M2 4h12M4 8h8M6 12h4" stroke="var(--ink)" strokeWidth="1.5" strokeLinecap="round"/>
+        </svg>
+        Filter
+        {activeCount > 0 && <span style={{background:'var(--accent)',color:'#fff',borderRadius:10,fontSize:11,padding:'1px 6px',fontWeight:600}}>{activeCount}</span>}
+      </button>
+
+      {open && (
+        <div className="filter-drawer open">
+          <div className="mobile-menu-backdrop" onClick={() => setOpen(false)}/>
+          <div className="filter-drawer-panel">
+            <div className="filter-drawer-handle"/>
+            <div className="filter-drawer-header">
+              <span style={{fontWeight:600,fontSize:16}}>Filter</span>
+              <button onClick={() => setOpen(false)} style={{width:32,height:32,borderRadius:16,background:'var(--bg)',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                <svg width="14" height="14" viewBox="0 0 14 14"><path d="M2 2l10 10M12 2L2 12" stroke="var(--ink-2)" strokeWidth="1.5" strokeLinecap="round"/></svg>
+              </button>
+            </div>
+            <div className="filter-drawer-body">
+              <FilterSidebar
+                priceRange={priceRange} setPriceRange={setPriceRange}
+                selectedCategories={selectedCategories} setSelectedCategories={setSelectedCategories}
+                selectedSubcategories={selectedSubcategories} setSelectedSubcategories={setSelectedSubcategories}
+                selectedRating={selectedRating} setSelectedRating={setSelectedRating}
+                selectedSizes={selectedSizes} setSelectedSizes={setSelectedSizes}
+                accentColor={accentColor} roundness={roundness}
+              />
+            </div>
+            <div className="filter-drawer-footer">
+              <button className="btn btn-secondary" style={{flex:1}} onClick={() => {
+                setPriceRange([0,maxPrice]); setSelectedCategories([]); setSelectedSubcategories([]); setSelectedRating(null); setSelectedSizes([]);
+              }}>Tozalash</button>
+              <button className="btn btn-primary" style={{flex:1}} onClick={() => setOpen(false)}>Qo'llash</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+/* ── Filter Sidebar ──────────────────────────────────────────────────────── */
+function FilterSidebar({ priceRange, setPriceRange, selectedCategories, setSelectedCategories, selectedSubcategories, setSelectedSubcategories, selectedRating, setSelectedRating, selectedSizes, setSelectedSizes, accentColor, roundness }) {
+  const r = roundness === 'sharp' ? 4 : roundness === 'pill' ? 14 : 8;
+  const categories = [...new Set(PRODUCTS.map(product => product.category))].sort((a, b) => a.localeCompare(b));
+  const sizes = [...new Set(PRODUCTS.flatMap(product => product.sizes || []))];
+  const maxPrice = Math.max(...PRODUCTS.map(product => product.price), 2000000);
+  const visibleSubcategories = [...new Set(
+    PRODUCTS
+      .filter(product => selectedCategories.length === 0 || selectedCategories.includes(product.category))
+      .map(product => product.subcategory)
+      .filter(Boolean)
+  )].sort((a, b) => a.localeCompare(b));
+  return (
+    <aside style={{width:210,flexShrink:0,display:'flex',flexDirection:'column',gap:24}}>
+      {/* Price */}
+      <div>
+        <p className="filter-label">Narx oralig'i</p>
+        <input type="range" min={0} max={maxPrice} step={10000} value={priceRange[1]}
+          onChange={e => setPriceRange([0, +e.target.value])}
+          style={{width:'100%',accentColor}}/>
+        <div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:'var(--ink-2)',marginTop:6}}>
+          <span>0</span>
+          <span style={{fontFamily:'var(--font-mono)',fontSize:12}}>{fmtPrice(priceRange[1])}</span>
+        </div>
+      </div>
+
+      {/* Categories */}
+      <div>
+        <p className="filter-label">Kategoriyalar</p>
+        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+          {categories.map(category => (
+            <label key={category} style={{display:'flex',alignItems:'center',gap:10,cursor:'pointer',fontSize:14}}>
+              <input type="checkbox" checked={selectedCategories.includes(category)}
+                onChange={() => setSelectedCategories(prev => prev.includes(category) ? prev.filter(x=>x!==category) : [...prev,category])}
+                style={{accentColor,width:15,height:15}}/>
+              <span style={{color:'var(--ink-2)'}}>{category}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* Subcategories */}
+      <div>
+        <p className="filter-label">Subkategoriyalar</p>
+        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+          {visibleSubcategories.map(subcategory => (
+            <label key={subcategory} style={{display:'flex',alignItems:'center',gap:10,cursor:'pointer',fontSize:14}}>
+              <input type="checkbox" checked={selectedSubcategories.includes(subcategory)}
+                onChange={() => setSelectedSubcategories(prev => prev.includes(subcategory) ? prev.filter(x=>x!==subcategory) : [...prev,subcategory])}
+                style={{accentColor,width:15,height:15}}/>
+              <span style={{color:'var(--ink-2)'}}>{subcategory}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* Rating */}
+      <div>
+        <p className="filter-label">Reyting</p>
+        <div style={{display:'flex',flexDirection:'column',gap:6}}>
+          {[4.5,4.0,3.5].map(rv => (
+            <button key={rv} onClick={() => setSelectedRating(selectedRating===rv?null:rv)} style={{
+              display:'flex',alignItems:'center',gap:8,
+              padding:'6px 10px', borderRadius:r,
+              background:selectedRating===rv?'var(--ink)':'transparent',
+              border:`1px solid ${selectedRating===rv?'var(--ink)':'var(--border)'}`,
+              color:selectedRating===rv?'#fff':'var(--ink-2)',
+              fontSize:13, transition:'all 0.15s',
+            }}>
+              <Stars rating={rv}/><span>{rv}+</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Sizes */}
+      <div>
+        <p className="filter-label">O'lchamlar</p>
+        <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+          {sizes.map(sz => (
+            <button key={sz} onClick={() => setSelectedSizes(prev => prev.includes(sz)?prev.filter(x=>x!==sz):[...prev,sz])} style={{
+              padding:'5px 10px', borderRadius:r,
+              background:selectedSizes.includes(sz)?'var(--ink)':'var(--surface)',
+              border:`1px solid ${selectedSizes.includes(sz)?'var(--ink)':'var(--border)'}`,
+              color:selectedSizes.includes(sz)?'#fff':'var(--ink-2)',
+              fontSize:12, transition:'all 0.15s',
+            }}>{sz}</button>
+          ))}
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+/* ── Product Card ────────────────────────────────────────────────────────── */
+function ProductCard({ product, onAddToCart, accentColor, roundness }) {
+  const [hovered, setHovered] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [wished, setWished] = useState(Wishlist.has(product.id));
+  const r = roundness === 'sharp' ? 6 : roundness === 'pill' ? 20 : 14;
+  const discount = product.oldPrice ? Math.round((1-product.price/product.oldPrice)*100) : null;
+
+  function handleAdd(e) {
+    e.stopPropagation();
+    setAdding(true);
+    onAddToCart(product);
+    setTimeout(() => setAdding(false), 800);
+  }
+
+  function handleWish(e) {
+    e.stopPropagation();
+    const added = Wishlist.toggle(product.id);
+    setWished(added);
+    showToast(added ? 'Istaklar ro\'yxatiga qo\'shildi' : 'Olib tashlandi', added ? 'success' : 'default');
+  }
+
+  const badgeClass = product.badge === 'Bestseller' ? 'badge-accent'
+    : product.badge === 'Yangi' ? 'badge-green'
+    : product.badge === 'Top' ? 'badge-purple'
+    : 'badge-red';
+
+  return (
+    <a href={`${ROUTES.product}?id=${product.id}`}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        background:'var(--surface)', borderRadius:r, overflow:'hidden',
+        border:'1px solid var(--border)', display:'block',
+        transition:'all 0.25s var(--ease-spring)',
+        transform:hovered?'translateY(-4px)':'none',
+        boxShadow:hovered?'var(--shadow-lg)':'var(--shadow)',
+        textDecoration:'none', color:'inherit',
+      }}
+    >
+      {/* Image */}
+      <div style={{position:'relative',overflow:'hidden',aspectRatio:'1',background:'var(--bg)'}}>
+        <div style={{transition:'transform 0.4s var(--ease-spring)',transform:hovered?'scale(1.06)':'scale(1)'}}>
+          <PImg imgKey={product.img}/>
+        </div>
+        {product.badge && <span className={`badge ${badgeClass}`} style={{position:'absolute',top:12,left:12}}>{product.badge}</span>}
+        {discount && <span className="badge badge-red" style={{position:'absolute',top:product.badge?40:12,left:12}}>-{discount}%</span>}
+
+        {/* Wish btn */}
+        <button onClick={handleWish} style={{
+          position:'absolute',top:10,right:10,
+          width:32,height:32,borderRadius:16,
+          background:'rgba(255,255,255,0.9)',backdropFilter:'blur(4px)',
+          display:'flex',alignItems:'center',justifyContent:'center',
+          opacity:hovered||wished?1:0, transition:'opacity 0.2s',
+        }}>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill={wished?'var(--red)':'none'}>
+            <path d="M8 13s-5.5-3.5-5.5-7a3 3 0 0 1 5.5-2A3 3 0 0 1 13.5 6c0 3.5-5.5 7-5.5 7z" stroke={wished?'var(--red)':'var(--ink-2)'} strokeWidth="1.4" strokeLinejoin="round"/>
+          </svg>
+        </button>
+
+        {/* Quick view */}
+        <div style={{position:'absolute',inset:0,display:'flex',alignItems:'flex-end',justifyContent:'center',padding:12,opacity:hovered?1:0,transition:'opacity 0.2s'}}>
+          <button onClick={e => { e.preventDefault(); window.location=`${ROUTES.product}?id=${product.id}`; }} style={{
+            background:'rgba(255,255,255,0.95)',backdropFilter:'blur(10px)',
+            color:'var(--ink)',padding:'9px 18px',borderRadius:r,
+            fontSize:12,fontWeight:500,boxShadow:'0 4px 12px rgba(0,0,0,0.1)',width:'100%',
+          }}>Batafsil ko'rish →</button>
+        </div>
+      </div>
+
+      {/* Info */}
+      <div style={{padding:'14px 16px 16px'}}>
+        <p style={{fontSize:11,color:'var(--ink-3)',marginBottom:2}}>{product.brand}</p>
+        {product.subcategory && <p style={{fontSize:11,color:'var(--accent)',marginBottom:4}}>{product.subcategory}</p>}
+        <h3 style={{fontSize:15,fontWeight:500,lineHeight:1.3,marginBottom:6}}>{product.name}</h3>
+        <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:10}}>
+          <Stars rating={product.rating}/>
+          <span style={{fontSize:12,color:'var(--ink-3)',fontFamily:'var(--font-mono)'}}>{product.reviews.toLocaleString()}</span>
+        </div>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div style={{display:'flex',alignItems:'baseline',gap:6}}>
+            <span style={{fontSize:17,fontWeight:700,fontFamily:'var(--font-mono)'}}>{fmtPrice(product.price)}</span>
+            {product.oldPrice && <span style={{fontSize:12,color:'var(--ink-3)',textDecoration:'line-through',fontFamily:'var(--font-mono)'}}>{fmtPrice(product.oldPrice)}</span>}
+          </div>
+          <button onClick={handleAdd} style={{
+            background:adding?'var(--green)':accentColor,
+            color:'#fff',width:36,height:36,
+            borderRadius:roundness==='pill'?18:r/1.4,
+            display:'flex',alignItems:'center',justifyContent:'center',
+            transition:'all 0.2s var(--ease-spring)',
+            transform:adding?'scale(0.9)':'scale(1)', flexShrink:0,
+          }}>
+            {adding
+              ? <svg width="14" height="14" viewBox="0 0 14 14"><path d="M2 7l3.5 3.5 6.5-7" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>
+              : <svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 2v10M2 7h10" stroke="#fff" strokeWidth="2" strokeLinecap="round"/></svg>}
+          </button>
+        </div>
+        {product.stock <= 5 && <p style={{fontSize:11,color:'var(--red)',marginTop:6}}>Faqat {product.stock} ta qoldi</p>}
+      </div>
+    </a>
+  );
+}
+
+/* ── List Card ───────────────────────────────────────────────────────────── */
+function ListCard({ product, onAddToCart, accentColor, roundness }) {
+  const r = roundness === 'sharp' ? 6 : roundness === 'pill' ? 14 : 10;
+  return (
+    <a href={`${ROUTES.product}?id=${product.id}`} style={{
+      display:'flex',gap:0,background:'var(--surface)',
+      borderRadius:r+4,overflow:'hidden',border:'1px solid var(--border)',
+      color:'inherit',textDecoration:'none',
+      transition:'box-shadow 0.2s',
+    }}
+    onMouseEnter={e=>e.currentTarget.style.boxShadow='var(--shadow-lg)'}
+    onMouseLeave={e=>e.currentTarget.style.boxShadow=''}>
+      <div style={{width:110,flexShrink:0,background:'var(--bg)'}}>
+        <PImg imgKey={product.img} size={110}/>
+      </div>
+      <div style={{padding:'14px 16px',flex:1,display:'flex',flexDirection:'column',justifyContent:'center',gap:4}}>
+        <p style={{fontSize:11,color:'var(--ink-3)'}}>{product.brand}</p>
+        {product.subcategory && <p style={{fontSize:11,color:'var(--accent)'}}>{product.subcategory}</p>}
+        <p style={{fontSize:16,fontWeight:500}}>{product.name}</p>
+        <Stars rating={product.rating} size={11}/>
+      </div>
+      <div style={{padding:'14px 20px',display:'flex',flexDirection:'column',alignItems:'flex-end',justifyContent:'center',gap:10}}>
+        <span style={{fontFamily:'var(--font-mono)',fontSize:18,fontWeight:700}}>{fmtPrice(product.price)}</span>
+        <button onClick={e=>{e.preventDefault();onAddToCart(product);showToast(product.name+' savatga qo\'shildi','success');}} style={{background:accentColor,color:'#fff',padding:'8px 16px',borderRadius:r,fontSize:13,fontWeight:500}}>+ Savat</button>
+      </div>
+    </a>
+  );
+}
+
+/* ── Main App ────────────────────────────────────────────────────────────── */
+function App() {
+  const { TweaksPanel, TweakSection, TweakToggle, TweakColor, TweakRadio, useTweaks } = window;
+  const maxPrice = Math.max(...PRODUCTS.map(product => product.price), 2000000);
+
+  const [tweaks, setTweak] = useTweaks(/*EDITMODE-BEGIN*/{
+    "accentColor": "oklch(72% 0.18 48)",
+    "heroDark": false,
+    "roundness": "rounded",
+    "showGrid": true
+  }/*EDITMODE-END*/);
+
+  const [activeCat, setActiveCat] = useState('Hammasi');
+  const [search, setSearch] = useState('');
+  const [priceRange, setPriceRange] = useState([0, maxPrice]);
+  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [selectedSubcategories, setSelectedSubcategories] = useState([]);
+  const [selectedRating, setSelectedRating] = useState(null);
+  const [selectedSizes, setSelectedSizes] = useState([]);
+  const [sortBy, setSortBy] = useState('popular');
+  const productsRef = useRef(null);
+
+  // Sync cart badge with shared Cart util
+  useEffect(() => {
+    // Read URL params
+    const p = new URLSearchParams(location.search);
+    if (p.get('cat')) setActiveCat(decodeURIComponent(p.get('cat')));
+    if (p.get('q')) setSearch(p.get('q'));
+  }, []);
+
+  function addToCart(product) {
+    Cart.add(product);
+    showToast(product.name + ' savatga qo\'shildi', 'success');
+  }
+
+  const CATS = ['Hammasi', ...CATEGORIES.map(category => category.name)];
+
+  const filtered = PRODUCTS.filter(p => {
+    if (activeCat !== 'Hammasi' && p.category !== activeCat) return false;
+    if (search && !p.name.toLowerCase().includes(search.toLowerCase()) && !p.brand.toLowerCase().includes(search.toLowerCase())) return false;
+    if (p.price > priceRange[1]) return false;
+    if (selectedCategories.length > 0 && !selectedCategories.includes(p.category)) return false;
+    if (selectedSubcategories.length > 0 && !selectedSubcategories.includes(p.subcategory)) return false;
+    if (selectedRating && p.rating < selectedRating) return false;
+    if (selectedSizes.length > 0 && p.sizes.length > 0 && !selectedSizes.some(s => p.sizes.includes(s))) return false;
+    return true;
+  }).sort((a,b) => {
+    if (sortBy==='price-asc') return a.price-b.price;
+    if (sortBy==='price-desc') return b.price-a.price;
+    if (sortBy==='rating') return b.rating-a.rating;
+    return b.reviews-a.reviews;
+  });
+
+  return (
+    <>
+      {/* Navbar injected by buildNavbar() outside React */}
+
+      <Hero
+        accentColor={tweaks.accentColor}
+        heroDark={tweaks.heroDark}
+        roundness={tweaks.roundness}
+        onShop={() => {
+          const el = productsRef.current;
+          if (el) { const y = el.getBoundingClientRect().top + window.scrollY - 80; window.scrollTo({top:y,behavior:'smooth'}); }
+        }}
+      />
+
+      {/* Stats */}
+      <div className="page-wrap" style={{paddingTop:24}}>
+        <div className="stats-bar" style={{borderRadius: tweaks.roundness==='sharp'?8:16}}>
+          {[{n:'50,000+',l:'Mahsulotlar'},{n:'99.8%',l:'Mijoz roziligi'},{n:'24/7',l:'Qo\'llab-quvvatlash'},{n:'1–3 kun',l:'Yetkazib berish'}].map(s => (
+            <div key={s.l} className="stat-item">
+              <p className="stat-num">{s.n}</p>
+              <p className="stat-label">{s.l}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Products */}
+      <main ref={productsRef} className="page-wrap products-layout" style={{paddingTop:40,paddingBottom:80,display:'flex',gap:32,alignItems:'start'}}>
+        {/* Desktop sidebar */}
+        <div className="filter-sidebar-desktop">
+            <FilterSidebar
+              priceRange={priceRange} setPriceRange={setPriceRange}
+              selectedCategories={selectedCategories} setSelectedCategories={setSelectedCategories}
+              selectedSubcategories={selectedSubcategories} setSelectedSubcategories={setSelectedSubcategories}
+              selectedRating={selectedRating} setSelectedRating={setSelectedRating}
+              selectedSizes={selectedSizes} setSelectedSizes={setSelectedSizes}
+              accentColor={tweaks.accentColor} roundness={tweaks.roundness}
+          />
+        </div>
+
+        {/* Mobile filter drawer */}
+        <FilterDrawer
+          priceRange={priceRange} setPriceRange={setPriceRange}
+          selectedCategories={selectedCategories} setSelectedCategories={setSelectedCategories}
+          selectedSubcategories={selectedSubcategories} setSelectedSubcategories={setSelectedSubcategories}
+          selectedRating={selectedRating} setSelectedRating={setSelectedRating}
+          selectedSizes={selectedSizes} setSelectedSizes={setSelectedSizes}
+          accentColor={tweaks.accentColor} roundness={tweaks.roundness}
+        />
+
+        <div style={{flex:1,minWidth:0}}>
+          {/* Toolbar */}
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:20,flexWrap:'wrap',gap:8}}>
+            <h2 style={{fontSize:20,fontWeight:600}}>
+              {activeCat === 'Hammasi' ? 'Barcha mahsulotlar' : activeCat}
+              <span style={{fontSize:14,color:'var(--ink-3)',fontWeight:400,marginLeft:8}}>({filtered.length})</span>
+            </h2>
+            <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+              {/* View toggle */}
+              <button onClick={() => setTweak('showGrid',true)} style={{
+                width:34,height:34,borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',
+                background:tweaks.showGrid?'var(--ink)':'var(--surface)',
+                border:'1px solid var(--border)', color:tweaks.showGrid?'#fff':'var(--ink-2)',
+              }}>
+                <svg width="14" height="14" viewBox="0 0 14 14"><rect x="1" y="1" width="5" height="5" rx="1" fill="currentColor"/><rect x="8" y="1" width="5" height="5" rx="1" fill="currentColor"/><rect x="1" y="8" width="5" height="5" rx="1" fill="currentColor"/><rect x="8" y="8" width="5" height="5" rx="1" fill="currentColor"/></svg>
+              </button>
+              <button onClick={() => setTweak('showGrid',false)} style={{
+                width:34,height:34,borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',
+                background:!tweaks.showGrid?'var(--ink)':'var(--surface)',
+                border:'1px solid var(--border)', color:!tweaks.showGrid?'#fff':'var(--ink-2)',
+              }}>
+                <svg width="14" height="14" viewBox="0 0 14 14"><rect x="1" y="2" width="12" height="2.5" rx="1" fill="currentColor"/><rect x="1" y="6" width="12" height="2.5" rx="1" fill="currentColor"/><rect x="1" y="10" width="12" height="2.5" rx="1" fill="currentColor"/></svg>
+              </button>
+              <select value={sortBy} onChange={e=>setSortBy(e.target.value)} className="form-input" style={{padding:'7px 12px',fontSize:13,width:'auto'}}>
+                <option value="popular">Mashhur</option>
+                <option value="rating">Reyting</option>
+                <option value="price-asc">Arzon → Qimmat</option>
+                <option value="price-desc">Qimmat → Arzon</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Grid or List */}
+          {tweaks.showGrid ? (
+            <div className="product-grid" style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(210px,1fr))',gap:16}}>
+              {filtered.map(p => (
+                <ProductCard key={p.id} product={p} onAddToCart={addToCart} accentColor={tweaks.accentColor} roundness={tweaks.roundness}/>
+              ))}
+            </div>
+          ) : (
+            <div style={{display:'flex',flexDirection:'column',gap:10}}>
+              {filtered.map(p => (
+                <ListCard key={p.id} product={p} onAddToCart={addToCart} accentColor={tweaks.accentColor} roundness={tweaks.roundness}/>
+              ))}
+            </div>
+          )}
+
+          {filtered.length === 0 && (
+            <div style={{textAlign:'center',padding:'80px 0',color:'var(--ink-3)'}}>
+              <p style={{fontSize:18,marginBottom:8}}>Mahsulot topilmadi</p>
+              <p style={{fontSize:14}}>Filtrlarni o'zgartiring yoki boshqa so'z kiriting</p>
+            </div>
+          )}
+        </div>
+      </main>
+
+      <TweaksPanel>
+        <TweakSection title="Rang & Stil">
+          <TweakColor id="accentColor" label="Accent rang" value={tweaks.accentColor} onChange={v=>setTweak('accentColor',v)}/>
+          <TweakToggle id="heroDark" label="Qora hero" value={tweaks.heroDark} onChange={v=>setTweak('heroDark',v)}/>
+          <TweakRadio id="roundness" label="Burchaklar" value={tweaks.roundness} onChange={v=>setTweak('roundness',v)} options={[
+            {value:'sharp',label:"O'tkir"},
+            {value:'rounded',label:'Yumaloq'},
+            {value:'pill',label:'Oval'},
+          ]}/>
+        </TweakSection>
+        <TweakSection title="Ko'rinish">
+          <TweakToggle id="showGrid" label="Grid ko'rinish" value={tweaks.showGrid} onChange={v=>setTweak('showGrid',v)}/>
+        </TweakSection>
+      </TweaksPanel>
+    </>
+  );
+}
+
+// Mount navbar via vanilla JS (not React) so it works with shared.js
+window.addEventListener('DOMContentLoaded', () => {
+  buildNavbar('shop');
+  buildFooter();
+});
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App/>);
+</script>
+{% endverbatim %}
+{% endblock %}

@@ -1,0 +1,83 @@
+/* ── Product Detail Page ─────────────────────────────────────────────────── */
+
+.product-main-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .product-main-grid { grid-template-columns: 1fr; gap: 32px; }
+}
+
+/* Gallery */
+.product-gallery { display: flex; flex-direction: column; gap: 12px; position: sticky; top: calc(var(--nav-h) + 24px); }
+.product-gallery-main {
+  aspect-ratio: 1;
+  background: var(--bg);
+  border-radius: var(--r-xl);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.product-gallery-thumbs { display: flex; gap: 8px; }
+.thumb-btn {
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  border: 2px solid transparent;
+  transition: border-color 0.15s;
+  opacity: 0.6;
+  transition: all 0.15s;
+}
+.thumb-btn.active,
+.thumb-btn:hover { border-color: var(--ink); opacity: 1; }
+
+/* Info panel */
+.product-info { padding-top: 8px; }
+
+/* Color swatch */
+.color-swatch { transition: transform 0.15s; }
+.color-swatch:hover { transform: scale(1.15); }
+
+/* Size buttons */
+.size-btn {
+  padding: 8px 16px;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  color: var(--ink-2);
+  font-size: 14px;
+  transition: all 0.15s;
+}
+.size-btn:hover { border-color: var(--ink-2); color: var(--ink); }
+.size-btn.active { background: var(--ink); border-color: var(--ink); color: #fff; }
+
+/* Tabs */
+.tab-btn {
+  padding: 12px 24px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink-3);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: all 0.15s;
+}
+.tab-btn:hover { color: var(--ink); }
+.tab-btn.active { color: var(--ink); border-bottom-color: var(--ink); }
+
+.tab-panel { animation: fadeIn 0.2s; }
+
+/* Related cards */
+.related-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  transition: all 0.25s var(--ease-spring);
+  display: block;
+  color: var(--ink);
+}
+.related-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}

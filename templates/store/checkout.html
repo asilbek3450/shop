@@ -1,0 +1,608 @@
+{% extends "store/base.html" %}
+
+{% block extra_css %}
+<style>
+  body { display: flex; flex-direction: column; min-height: 100vh; }
+
+  .checkout-layout {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 40px;
+    align-items: start;
+    padding: 40px 0 80px;
+  }
+  @media(max-width:900px) {
+    .checkout-layout { grid-template-columns: 1fr; }
+    .order-summary { order: -1; }
+  }
+
+  /* Step panels */
+  .step-panel { display: none; animation: slideUp 0.3s var(--ease-out); }
+  .step-panel.active { display: block; }
+
+  /* Payment method cards */
+  .pay-method {
+    display: flex; align-items: center; gap: 14px;
+    padding: 16px 20px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--r-lg);
+    cursor: pointer;
+    transition: all 0.15s;
+    background: var(--surface);
+  }
+  .pay-method:hover { border-color: var(--ink-2); }
+  .pay-method.selected { border-color: var(--ink); background: var(--bg); }
+  .pay-method-radio {
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s; flex-shrink: 0;
+  }
+  .pay-method.selected .pay-method-radio { border-color: var(--ink); background: var(--ink); }
+  .pay-method.selected .pay-method-radio::after {
+    content: ''; width: 6px; height: 6px; border-radius: 50%; background: #fff;
+  }
+
+  /* Order summary */
+  .order-summary {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-xl);
+    overflow: hidden;
+    position: sticky;
+    top: calc(var(--nav-h) + 24px);
+  }
+  .summary-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .summary-items { padding: 16px 24px; display: flex; flex-direction: column; gap: 12px; }
+  .summary-item { display: flex; gap: 12px; align-items: center; }
+  .summary-item-img {
+    width: 52px; height: 52px; border-radius: var(--r-sm);
+    overflow: hidden; flex-shrink: 0; background: var(--bg);
+  }
+  .summary-totals { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+  .summary-row { display: flex; justify-content: space-between; font-size: 14px; color: var(--ink-2); }
+  .summary-total-row { display: flex; justify-content: space-between; font-size: 18px; font-weight: 700; margin-top: 4px; }
+
+  /* Promo */
+  .promo-row { display: flex; gap: 8px; padding: 0 24px 16px; }
+  .promo-input {
+    flex: 1; padding: 10px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--r-md);
+    font-size: 14px; outline: none;
+    transition: border-color 0.15s;
+    font-family: var(--font-mono);
+    letter-spacing: 1px;
+  }
+  .promo-input:focus { border-color: var(--ink); }
+  .promo-input.valid { border-color: var(--green); }
+
+  /* Delivery options */
+  .delivery-option {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 18px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--r-lg);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .delivery-option:hover { border-color: var(--ink-2); }
+  .delivery-option.selected { border-color: var(--ink); background: var(--bg); }
+</style>
+{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+<div id="app">
+  <!-- Navbar injected by JS -->
+
+  <main class="page-wrap">
+    <!-- Steps -->
+    <div style="padding: 32px 0 24px">
+      <div class="steps" id="steps-indicator">
+        <div class="step-item">
+          <div class="step-circle active" id="sc-0">1</div>
+          <span class="step-label active" id="sl-0">Savat</span>
+        </div>
+        <div class="step-line"></div>
+        <div class="step-item">
+          <div class="step-circle" id="sc-1">2</div>
+          <span class="step-label" id="sl-1">Yetkazish</span>
+        </div>
+        <div class="step-line"></div>
+        <div class="step-item">
+          <div class="step-circle" id="sc-2">3</div>
+          <span class="step-label" id="sl-2">To'lov</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="checkout-layout">
+      <!-- Left: step panels -->
+      <div>
+
+        <!-- Step 0: Cart review -->
+        <div class="step-panel active" id="panel-0">
+          <h2 style="font-size:24px;font-weight:600;letter-spacing:-0.5px;margin-bottom:24px">Savatdagi mahsulotlar</h2>
+          <div id="cart-list" style="display:flex;flex-direction:column;gap:12px"></div>
+          <div id="cart-empty" style="display:none;padding:60px 0;text-align:center;color:var(--ink-3)">
+            <svg width="56" height="56" viewBox="0 0 56 56" fill="none" style="margin:0 auto 16px">
+              <circle cx="28" cy="28" r="24" stroke="var(--border)" stroke-width="2"/>
+              <path d="M19 19h3l5 13h9l4-10H24" stroke="var(--border)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <p style="font-size:17px;margin-bottom:16px">Savat bo'sh</p>
+            <a href="{% url 'shop' %}" class="btn btn-primary">Xaridni boshlash</a>
+          </div>
+          <div id="cart-footer" style="margin-top:24px;display:flex;justify-content:flex-end">
+            <button class="btn btn-primary btn-lg" onclick="goStep(1)" id="to-delivery-btn">
+              Yetkazishga o'tish →
+            </button>
+          </div>
+        </div>
+
+        <!-- Step 1: Delivery -->
+        <div class="step-panel" id="panel-1">
+          <h2 style="font-size:24px;font-weight:600;letter-spacing:-0.5px;margin-bottom:24px">Yetkazib berish</h2>
+
+          <!-- Delivery options -->
+          <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:28px">
+            <label class="delivery-option selected" id="del-0" onclick="selectDelivery(0)">
+              <input type="radio" name="delivery" style="display:none">
+              <div style="width:40px;height:40px;border-radius:var(--r-md);background:var(--bg);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                🚚
+              </div>
+              <div style="flex:1">
+                <p style="font-weight:500;font-size:15px">Standart yetkazish</p>
+                <p style="font-size:13px;color:var(--ink-3)">2–4 ish kuni</p>
+              </div>
+              <div style="text-align:right">
+                <p style="font-weight:600;font-family:var(--font-mono)">25 000 so'm</p>
+              </div>
+            </label>
+            <label class="delivery-option" id="del-1" onclick="selectDelivery(1)">
+              <input type="radio" name="delivery" style="display:none">
+              <div style="width:40px;height:40px;border-radius:var(--r-md);background:var(--bg);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                ⚡
+              </div>
+              <div style="flex:1">
+                <p style="font-weight:500;font-size:15px">Tezkor yetkazish</p>
+                <p style="font-size:13px;color:var(--ink-3)">Ertaga soat 18:00 gacha</p>
+              </div>
+              <div style="text-align:right">
+                <p style="font-weight:600;font-family:var(--font-mono)">50 000 so'm</p>
+              </div>
+            </label>
+            <label class="delivery-option" id="del-2" onclick="selectDelivery(2)">
+              <input type="radio" name="delivery" style="display:none">
+              <div style="width:40px;height:40px;border-radius:var(--r-md);background:var(--bg);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                🏪
+              </div>
+              <div style="flex:1">
+                <p style="font-weight:500;font-size:15px">Do'kondan olib ketish</p>
+                <p style="font-size:13px;color:var(--ink-3)">Bugun tayyor</p>
+              </div>
+              <div style="text-align:right">
+                <p style="font-weight:600;color:var(--green);font-family:var(--font-mono)">Bepul</p>
+              </div>
+            </label>
+          </div>
+
+          <!-- Address form -->
+          <h3 style="font-size:17px;font-weight:600;margin-bottom:16px">Manzil</h3>
+          <div style="display:flex;flex-direction:column;gap:16px" id="address-form">
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Ism</label>
+                <input class="form-input" placeholder="Sardor" id="f-first">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Familiya</label>
+                <input class="form-input" placeholder="Toshmatov" id="f-last">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Telefon</label>
+              <input class="form-input" placeholder="+998 90 123 45 67" id="f-phone" type="tel">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Shahar</label>
+              <select class="form-input" id="f-city">
+                <option>Toshkent</option>
+                <option>Samarqand</option>
+                <option>Buxoro</option>
+                <option>Namangan</option>
+                <option>Andijon</option>
+                <option>Farg'ona</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Ko'cha, uy raqami</label>
+              <input class="form-input" placeholder="Navoiy ko'chasi 12, 45-xonadon" id="f-address">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Izoh (ixtiyoriy)</label>
+              <textarea class="form-input" rows="2" placeholder="Qo'shimcha ko'rsatmalar..." id="f-note" style="resize:vertical"></textarea>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:12px;margin-top:28px">
+            <button class="btn btn-secondary" onclick="goStep(0)">← Orqaga</button>
+            <button class="btn btn-primary" style="flex:1" onclick="validateAndGoPayment()">To'lovga o'tish →</button>
+          </div>
+        </div>
+
+        <!-- Step 2: Payment -->
+        <div class="step-panel" id="panel-2">
+          <h2 style="font-size:24px;font-weight:600;letter-spacing:-0.5px;margin-bottom:24px">To'lov usuli</h2>
+
+          <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:28px" id="pay-methods">
+            <div class="pay-method selected" onclick="selectPay(this)">
+              <div class="pay-method-radio"></div>
+              <div style="width:40px;height:26px;background:#1a1a6e;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                <span style="color:#fff;font-size:9px;font-weight:700;font-family:var(--font-mono)">UZCARD</span>
+              </div>
+              <div style="flex:1">
+                <p style="font-weight:500">Uzcard / Humo</p>
+                <p style="font-size:13px;color:var(--ink-3)">O'zbek milliy to'lov tizimlari</p>
+              </div>
+            </div>
+            <div class="pay-method" onclick="selectPay(this)">
+              <div class="pay-method-radio"></div>
+              <div style="width:40px;height:26px;background:linear-gradient(135deg,#1a1fa8,#c00);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                <span style="color:#fff;font-size:9px;font-weight:700;font-family:var(--font-mono)">VISA</span>
+              </div>
+              <div style="flex:1">
+                <p style="font-weight:500">Visa / Mastercard</p>
+                <p style="font-size:13px;color:var(--ink-3)">Xalqaro to'lov kartalari</p>
+              </div>
+            </div>
+            <div class="pay-method" onclick="selectPay(this)">
+              <div class="pay-method-radio"></div>
+              <div style="width:40px;height:26px;background:#009f6b;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                <span style="color:#fff;font-size:9px;font-weight:700;font-family:var(--font-mono)">CLICK</span>
+              </div>
+              <div style="flex:1">
+                <p style="font-weight:500">Click / Payme</p>
+                <p style="font-size:13px;color:var(--ink-3)">Mobil to'lov ilovalari</p>
+              </div>
+            </div>
+            <div class="pay-method" onclick="selectPay(this)">
+              <div class="pay-method-radio"></div>
+              <div style="width:40px;height:26px;background:var(--bg);border:1px solid var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                💵
+              </div>
+              <div style="flex:1">
+                <p style="font-weight:500">Naqd pul</p>
+                <p style="font-size:13px;color:var(--ink-3)">Yetkazishda to'lov</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card input (shown for card methods) -->
+          <div id="card-fields" style="display:flex;flex-direction:column;gap:16px;margin-bottom:28px">
+            <div class="form-group">
+              <label class="form-label">Karta raqami</label>
+              <input class="form-input" placeholder="8600 0000 0000 0000" id="card-num" maxlength="19" oninput="formatCard(this)">
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Muddati</label>
+                <input class="form-input" placeholder="MM/YY" id="card-exp" maxlength="5" oninput="formatExp(this)">
+              </div>
+              <div class="form-group">
+                <label class="form-label">SMS kod</label>
+                <input class="form-input" placeholder="••••" id="card-cvv" maxlength="4" type="password">
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:12px">
+            <button class="btn btn-secondary" onclick="goStep(1)">← Orqaga</button>
+            <button class="btn btn-primary btn-lg" style="flex:1" onclick="placeOrder()" id="place-order-btn">
+              Buyurtmani tasdiqlash →
+            </button>
+          </div>
+
+          <p style="font-size:12px;color:var(--ink-3);margin-top:14px;display:flex;align-items:center;gap:6px">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="2" y="6" width="10" height="7" rx="1.5" stroke="var(--ink-3)" stroke-width="1.3"/><path d="M5 6V4a2 2 0 1 1 4 0v2" stroke="var(--ink-3)" stroke-width="1.3" stroke-linecap="round"/></svg>
+            Barcha ma'lumotlar SSL orqali himoyalangan
+          </p>
+        </div>
+
+      </div>
+
+      <!-- Right: Order summary -->
+      <aside class="order-summary">
+        <div class="summary-header">
+          <span style="font-size:16px;font-weight:600">Buyurtma xulosasi</span>
+          <a href="{% url 'shop' %}" style="font-size:13px;color:var(--accent)">+ Qo'shish</a>
+        </div>
+
+        <div class="summary-items" id="summary-items"></div>
+
+        <!-- Promo -->
+        <div class="promo-row">
+          <input class="promo-input" placeholder="PROMO KOD" id="promo-input" oninput="this.value=this.value.toUpperCase()">
+          <button class="btn btn-secondary btn-sm" onclick="applyPromo()">Qo'llash</button>
+        </div>
+
+        <div class="summary-totals">
+          <div class="summary-row">
+            <span>Mahsulotlar</span>
+            <span id="subtotal-val" style="font-family:var(--font-mono)">—</span>
+          </div>
+          <div class="summary-row">
+            <span>Yetkazish</span>
+            <span id="delivery-val" style="font-family:var(--font-mono)">25 000 so'm</span>
+          </div>
+          <div class="summary-row" id="discount-row" style="display:none;color:var(--green)">
+            <span>Chegirma</span>
+            <span id="discount-val" style="font-family:var(--font-mono)"></span>
+          </div>
+          <div class="divider"></div>
+          <div class="summary-total-row">
+            <span>Jami</span>
+            <span id="total-val" style="font-family:var(--font-mono)">—</span>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentStep = 0;
+let selectedDelivery = 0;
+let deliveryCost = 25000;
+let discount = 0;
+const PROMO_CODES = { 'NEXUS10': 10, 'SPORT20': 20, 'WELCOME15': 15 };
+
+document.addEventListener('DOMContentLoaded', () => {
+  buildNavbar('checkout');
+  renderCartList();
+  renderSummary();
+});
+
+function renderCartList() {
+  const items = Cart.getItems();
+  const list = document.getElementById('cart-list');
+  const empty = document.getElementById('cart-empty');
+  const footer = document.getElementById('cart-footer');
+
+  if (items.length === 0) {
+    list.style.display = 'none';
+    empty.style.display = 'block';
+    footer.style.display = 'none';
+    return;
+  }
+
+  list.innerHTML = items.map((item, idx) => `
+    <div style="display:flex;gap:16px;align-items:center;padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg)">
+      <div style="width:72px;height:72px;border-radius:var(--r-md);overflow:hidden;flex-shrink:0;background:var(--bg)">
+        ${productImageSVG(item.img, 72)}
+      </div>
+      <div style="flex:1;min-width:0">
+        <p style="font-size:12px;color:var(--ink-3)">${item.brand}</p>
+        <p style="font-weight:500;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.name}</p>
+        <p style="font-size:14px;color:var(--ink-2);font-family:var(--font-mono)">${fmtPrice(item.price)}</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="qty-control" style="gap:8px">
+          <button class="qty-btn" onclick="updateQty(${idx},${(item.qty||1)-1})">−</button>
+          <span class="qty-num">${item.qty||1}</span>
+          <button class="qty-btn" onclick="updateQty(${idx},${(item.qty||1)+1})">+</button>
+        </div>
+        <button onclick="removeItem(${idx})" style="color:var(--ink-3);padding:4px">
+          <svg width="16" height="16" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div style="min-width:80px;text-align:right">
+        <p style="font-weight:700;font-family:var(--font-mono);font-size:16px">${fmtPrice(item.price*(item.qty||1))}</p>
+      </div>
+    </div>`).join('');
+}
+
+function renderSummary() {
+  const items = Cart.getItems();
+  const summaryItems = document.getElementById('summary-items');
+  summaryItems.innerHTML = items.map(it => `
+    <div class="summary-item">
+      <div class="summary-item-img">${productImageSVG(it.img, 52)}</div>
+      <div style="flex:1;min-width:0">
+        <p style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${it.name}</p>
+        <p style="font-size:12px;color:var(--ink-3)">${it.qty||1} × ${fmtPrice(it.price)}</p>
+      </div>
+      <p style="font-family:var(--font-mono);font-size:13px;font-weight:600;flex-shrink:0">${fmtPrice(it.price*(it.qty||1))}</p>
+    </div>`).join('');
+
+  const sub = Cart.getTotal();
+  const total = sub + deliveryCost - discount;
+  document.getElementById('subtotal-val').textContent = fmtPrice(sub);
+  document.getElementById('total-val').textContent = fmtPrice(Math.max(0, total));
+}
+
+function updateQty(idx, qty) {
+  Cart.updateQty(idx, qty);
+  renderCartList();
+  renderSummary();
+}
+
+function removeItem(idx) {
+  Cart.remove(idx);
+  renderCartList();
+  renderSummary();
+}
+
+function goStep(n) {
+  // Mark old step
+  document.getElementById('panel-' + currentStep).classList.remove('active');
+
+  // Update indicator
+  for (let i = 0; i < 3; i++) {
+    const sc = document.getElementById('sc-' + i);
+    const sl = document.getElementById('sl-' + i);
+    if (i < n) {
+      sc.classList.remove('active'); sc.classList.add('done');
+      sc.innerHTML = '<svg width="14" height="14" viewBox="0 0 14 14"><path d="M2 7l3.5 3.5 6.5-7" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>';
+    } else if (i === n) {
+      sc.classList.remove('done'); sc.classList.add('active');
+      sc.innerHTML = i + 1;
+    } else {
+      sc.classList.remove('active','done');
+      sc.innerHTML = i + 1;
+    }
+    sl.classList.toggle('active', i === n);
+  }
+
+  currentStep = n;
+  document.getElementById('panel-' + n).classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function selectDelivery(idx) {
+  [0,1,2].forEach(i => document.getElementById('del-'+i).classList.toggle('selected', i===idx));
+  selectedDelivery = idx;
+  deliveryCost = [25000, 50000, 0][idx];
+  document.getElementById('delivery-val').textContent = deliveryCost === 0 ? 'Bepul' : fmtPrice(deliveryCost);
+  renderSummary();
+}
+
+function validateAndGoPayment() {
+  const first = document.getElementById('f-first').value.trim();
+  const phone = document.getElementById('f-phone').value.trim();
+  const address = document.getElementById('f-address').value.trim();
+  if (!first) { showToast('Ismingizni kiriting', 'error'); return; }
+  if (!phone) { showToast('Telefon raqamini kiriting', 'error'); return; }
+  if (selectedDelivery < 2 && !address) { showToast('Manzilingizni kiriting', 'error'); return; }
+  goStep(2);
+}
+
+function selectPay(el) {
+  document.querySelectorAll('.pay-method').forEach(m => m.classList.remove('selected'));
+  el.classList.add('selected');
+  // hide card fields for cash
+  const isCash = el.querySelector('p').textContent.includes('Naqd');
+  document.getElementById('card-fields').style.display = isCash ? 'none' : 'flex';
+}
+
+function formatCard(input) {
+  let v = input.value.replace(/\D/g,'').substring(0,16);
+  input.value = v.replace(/(.{4})/g,'$1 ').trim();
+}
+
+function formatExp(input) {
+  let v = input.value.replace(/\D/g,'');
+  if (v.length >= 2) v = v.substring(0,2) + '/' + v.substring(2,4);
+  input.value = v;
+}
+
+function applyPromo() {
+  const code = document.getElementById('promo-input').value.trim().toUpperCase();
+  if (PROMO_CODES[code]) {
+    const pct = PROMO_CODES[code];
+    discount = Math.round(Cart.getTotal() * pct / 100);
+    document.getElementById('promo-input').classList.add('valid');
+    document.getElementById('discount-row').style.display = 'flex';
+    document.getElementById('discount-val').textContent = '−' + fmtPrice(discount);
+    showToast(`${pct}% chegirma qo'llanildi!`, 'success');
+    renderSummary();
+  } else {
+    showToast('Promo kod noto\'g\'ri', 'error');
+  }
+}
+
+function getCsrfToken() {
+  const el = document.querySelector('input[name="csrfmiddlewaretoken"]');
+  return el ? el.value : '';
+}
+
+function getSelectedPaymentMethod() {
+  const selected = document.querySelector('.pay-method.selected');
+  if (!selected) return 'card';
+  const label = (selected.querySelector('p') || {}).textContent || '';
+  if (label.includes('Naqd')) return 'cash';
+  if (label.includes('Click') || label.includes('Payme')) return 'click';
+  return 'card';
+}
+
+async function placeOrder() {
+  const btn = document.getElementById('place-order-btn');
+  const items = Cart.getItems();
+  if (items.length === 0) {
+    showToast('Savat bo\'sh', 'error');
+    return;
+  }
+
+  btn.disabled = true;
+  const originalText = btn.textContent;
+  btn.textContent = 'Jarayonda...';
+
+  const customer = {
+    first_name: document.getElementById('f-first').value.trim(),
+    last_name:  document.getElementById('f-last').value.trim(),
+    phone:      document.getElementById('f-phone').value.trim(),
+    city:       document.getElementById('f-city').value.trim(),
+    address:    document.getElementById('f-address').value.trim(),
+    note:       document.getElementById('f-note').value.trim(),
+  };
+
+  const deliveryMethods = ['standard', 'express', 'pickup'];
+  const payload = {
+    customer: customer,
+    items: items.map(function(item) {
+      return {
+        product_id: item.id,
+        name:  item.name,
+        brand: item.brand,
+        price: item.price,
+        qty:   item.qty || 1,
+      };
+    }),
+    delivery_method: deliveryMethods[selectedDelivery] || 'standard',
+    payment_method:  getSelectedPaymentMethod(),
+    promo_code:      document.getElementById('promo-input').value.trim(),
+  };
+
+  try {
+    const response = await fetch('/orders/submit/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCsrfToken(),
+      },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json();
+    if (!response.ok || !data.ok) {
+      throw new Error(data.error || 'Buyurtma yuborilmadi');
+    }
+
+    const summary = {
+      id:       data.order.code,
+      items:    items,
+      total:    data.order.total,
+      subtotal: data.order.subtotal,
+      delivery: ['Standart', 'Tezkor', 'Do\'kondan'][selectedDelivery],
+      date:     new Date().toISOString(),
+      status:   'confirmed',
+    };
+    Store.set('last_order', summary);
+    const history = Store.get('orders', []);
+    history.unshift(summary);
+    Store.set('orders', history);
+    Cart.clear();
+    window.location = ROUTES.confirmation;
+  } catch (error) {
+    showToast(error.message || 'Tarmoq xatosi', 'error');
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
+</script>
+{% endblock %}

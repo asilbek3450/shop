@@ -1,0 +1,178 @@
+{% extends "store/base.html" %}
+
+{% block extra_css %}
+<style>
+  body { display:flex; flex-direction:column; min-height:100vh; }
+
+  .wish-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px,1fr));
+    gap: 20px;
+  }
+
+  .wish-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    transition: all 0.25s var(--ease-spring);
+  }
+  .wish-card:hover { transform:translateY(-4px); box-shadow:var(--shadow-lg); }
+
+  .wish-card-img {
+    position: relative; aspect-ratio:1; background:var(--bg);
+    overflow:hidden;
+  }
+  .wish-card-img:hover .wish-img-inner { transform:scale(1.06); }
+  .wish-img-inner { transition:transform 0.4s var(--ease-spring); }
+  .wish-remove {
+    position:absolute; top:10px; right:10px;
+    width:32px; height:32px; border-radius:16px;
+    background:rgba(255,255,255,0.9);
+    display:flex; align-items:center; justify-content:center;
+    transition:all 0.15s;
+    backdrop-filter:blur(4px);
+  }
+  .wish-remove:hover { background:#fff; transform:scale(1.1); }
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="page-wrap" style="padding-top:32px; padding-bottom:80px; flex:1">
+
+  <!-- Header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;flex-wrap:wrap;gap:12px">
+    <div>
+      <h1 style="font-size:28px;font-weight:700;letter-spacing:-0.7px">Istaklar ro'yxati</h1>
+      <p style="font-size:14px;color:var(--ink-3);margin-top:4px" id="wish-count">0 ta mahsulot</p>
+    </div>
+    <div style="display:flex;gap:10px" id="wish-actions">
+      <button class="btn btn-secondary btn-sm" onclick="addAllToCart()" id="add-all-btn" style="display:none">
+        Barchasini savatga
+      </button>
+      <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="clearAll()" id="clear-btn" style="display:none">
+        Barchasini o'chirish
+      </button>
+    </div>
+  </div>
+
+  <!-- Grid -->
+  <div class="wish-grid" id="wish-grid"></div>
+
+  <!-- Empty state -->
+  <div id="wish-empty" style="display:none;text-align:center;padding:80px 24px">
+    <svg width="80" height="80" viewBox="0 0 80 80" fill="none" style="margin:0 auto 20px">
+      <circle cx="40" cy="40" r="36" stroke="var(--border)" stroke-width="2"/>
+      <path d="M40 52s-16-10-16-22a10 10 0 0 1 16-8 10 10 0 0 1 16 8c0 12-16 22-16 22z" stroke="var(--border)" stroke-width="2" stroke-linejoin="round"/>
+    </svg>
+    <h2 style="font-size:22px;font-weight:600;margin-bottom:8px">Istaklar ro'yxati bo'sh</h2>
+    <p style="font-size:15px;color:var(--ink-3);margin-bottom:28px">Yoqqan mahsulotlarni saqlab qo'ying</p>
+    <a href="{% url 'shop' %}" class="btn btn-primary btn-lg">Mahsulotlarni ko'rish →</a>
+  </div>
+
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  buildNavbar();
+  render();
+  buildFooter();
+
+  window.addEventListener('wishlist-updated', render);
+  window.addEventListener('cart-updated', () => {
+    // Re-render to reflect cart state
+  });
+});
+
+function render() {
+  const ids = Wishlist.getIds();
+  const products = PRODUCTS.filter(p => ids.includes(p.id));
+  const grid = document.getElementById('wish-grid');
+  const empty = document.getElementById('wish-empty');
+  const countEl = document.getElementById('wish-count');
+  const addAllBtn = document.getElementById('add-all-btn');
+  const clearBtn = document.getElementById('clear-btn');
+
+  countEl.textContent = products.length + ' ta mahsulot';
+
+  if (products.length === 0) {
+    grid.style.display = 'none';
+    empty.style.display = 'block';
+    addAllBtn.style.display = 'none';
+    clearBtn.style.display = 'none';
+    return;
+  }
+
+  grid.style.display = 'grid';
+  empty.style.display = 'none';
+  addAllBtn.style.display = 'inline-flex';
+  clearBtn.style.display = 'inline-flex';
+
+  const discount = p => p.oldPrice ? Math.round((1 - p.price/p.oldPrice)*100) : null;
+
+  grid.innerHTML = products.map(p => {
+    const disc = discount(p);
+    return `
+      <div class="wish-card" id="wc-${p.id}">
+        <a href="${ROUTES.product}?id=${p.id}" class="wish-card-img" style="display:block">
+          <div class="wish-img-inner">${productImageSVG(p.img)}</div>
+          ${p.badge ? `<span class="badge badge-${p.badge==='Bestseller'?'accent':p.badge==='Yangi'?'green':p.badge==='Top'?'purple':'red'}" style="position:absolute;top:12px;left:12px">${p.badge}</span>` : ''}
+          ${disc ? `<span class="badge badge-red" style="position:absolute;${p.badge?'top:40px':'top:12px'};left:12px">-${disc}%</span>` : ''}
+          <button class="wish-remove" onclick="removeWish(event,${p.id})" title="O'chirish">
+            <svg width="14" height="14" viewBox="0 0 14 14"><path d="M2 2l10 10M12 2L2 12" stroke="var(--ink-2)" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </button>
+        </a>
+        <div style="padding:14px 16px 16px">
+          <p style="font-size:11px;color:var(--ink-3);margin-bottom:2px">${p.brand}</p>
+          <p style="font-weight:500;font-size:15px;margin-bottom:6px;line-height:1.3">${p.name}</p>
+          <div class="stars" style="margin-bottom:10px">${renderStars(p.rating)}</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <div>
+              <span style="font-family:var(--font-mono);font-weight:700;font-size:16px">${fmtPrice(p.price)}</span>
+              ${p.oldPrice ? `<span style="font-family:var(--font-mono);font-size:12px;color:var(--ink-3);text-decoration:line-through;margin-left:4px">${fmtPrice(p.oldPrice)}</span>` : ''}
+            </div>
+            <button onclick="addOne(${p.id},this)" class="btn btn-primary btn-sm" style="flex-shrink:0">
+              + Savat
+            </button>
+          </div>
+          ${p.stock <= 5 ? `<p style="font-size:11px;color:var(--red);margin-top:6px">Faqat ${p.stock} ta qoldi</p>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function removeWish(e, id) {
+  e.preventDefault(); e.stopPropagation();
+  const card = document.getElementById('wc-' + id);
+  if (card) { card.style.opacity='0'; card.style.transform='scale(0.9)'; card.style.transition='all 0.2s'; }
+  setTimeout(() => { Wishlist.toggle(id); render(); }, 200);
+}
+
+function addOne(id, btn) {
+  const p = PRODUCTS.find(x => x.id === id);
+  if (!p) return;
+  Cart.add(p);
+  btn.textContent = '✓ Qo\'shildi';
+  btn.style.background = 'var(--green)';
+  showToast(p.name + ' savatchaga qo\'shildi', 'success');
+  setTimeout(() => { btn.textContent = '+ Savat'; btn.style.background = ''; }, 1500);
+}
+
+function addAllToCart() {
+  const ids = Wishlist.getIds();
+  ids.forEach(id => {
+    const p = PRODUCTS.find(x => x.id === id);
+    if (p) Cart.add(p);
+  });
+  showToast(`${ids.length} ta mahsulot savatchaga qo'shildi`, 'success');
+}
+
+function clearAll() {
+  if (!confirm('Barcha mahsulotlarni o\'chirmoqchimisiz?')) return;
+  Wishlist.getIds().forEach(id => Wishlist.toggle(id));
+  render();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
+  <link rel="stylesheet" href="{% static 'css/components.css' %}">
+  <link rel="stylesheet" href="{% static 'css/mobile.css' %}">
+  {% block extra_css %}{% endblock %}
+  <script>
+    window.NEXUS_ROUTES = {
+      index: "{% url 'index' %}",
+      shop: "{% url 'shop' %}",
+      product: "{% url 'product' %}",
+      checkout: "{% url 'checkout' %}",
+      wishlist: "{% url 'wishlist' %}",
+      profile: "{% url 'profile' %}",
+      confirmation: "{% url 'confirmation' %}"
+    };
+    window.NEXUS_SITE_URL = "{{ site_url|default:'' }}";
+    window.__CATALOG_DATA__ = {{ catalog_payload_json|safe }};
+  </script>
+  {% block extra_head %}{% endblock %}
+</head>
+<body data-page="{{ page_key }}">
+  <script src="{% static 'js/data.js' %}"></script>
+  <script src="{% static 'js/shared.js' %}"></script>
+  {% block content %}{% endblock %}
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

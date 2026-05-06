@@ -1,0 +1,340 @@
+{% extends "store/base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/product.css' %}">
+{% endblock %}
+
+{% block content %}
+<div id="product-page"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  buildNavbar();
+
+  const params = new URLSearchParams(location.search);
+  const id = params.get('id') || "{{ current_product_id|default:'1' }}";
+  const product = getProductById(id);
+
+  if (!product) {
+    document.getElementById('product-page').innerHTML = `
+      <div class="page-wrap" style="padding:80px 0;text-align:center;color:var(--ink-3)">
+        <p style="font-size:20px">Mahsulot topilmadi</p>
+        <a href="${ROUTES.shop}" class="btn btn-primary" style="margin-top:24px;display:inline-flex">Xaridga qaytish</a>
+      </div>`;
+    buildFooter();
+    return;
+  }
+
+  const isWished = Wishlist.has(product.id);
+  const related = getRelatedProducts(product, 4);
+  const discount = product.oldPrice ? Math.round((1 - product.price / product.oldPrice) * 100) : null;
+
+  // Review data (static for prototype)
+  const REVIEWS = [
+    { name:'Sardor M.', rating:5, date:'2025-03-12', text:'Ajoyib mahsulot! Tez yetkazib berildi, sifati a\'lo.' },
+    { name:'Nilufar K.', rating:4, date:'2025-02-28', text:'Narxi biroz yuqori, lekin sifatga arziydi. Tavsiya qilaman.' },
+    { name:'Jasur T.',   rating:5, date:'2025-01-15', text:'Allaqachon ikkinchi marta sotib olayapman. Sifat zo\'r!' },
+  ];
+
+  document.title = `${product.name} — NEXUS`;
+
+  document.getElementById('product-page').innerHTML = `
+    <!-- Breadcrumb -->
+    <div class="page-wrap" style="padding-top:20px;padding-bottom:8px">
+      <nav style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink-3)">
+        <a href="${ROUTES.index}" style="color:var(--ink-3)">Bosh sahifa</a>
+        <span>/</span>
+        <a href="${ROUTES.shop}?cat=${encodeURIComponent(product.category)}" style="color:var(--ink-3)">${product.category}</a>
+        <span>/</span>
+        ${product.subcategory ? `<span style="color:var(--ink-3)">${product.subcategory}</span><span>/</span>` : ''}
+        <span style="color:var(--ink)">${product.name}</span>
+      </nav>
+    </div>
+
+    <!-- Main product section -->
+    <div class="page-wrap" style="padding-top:24px;padding-bottom:60px">
+      <div class="product-main-grid">
+
+        <!-- Gallery -->
+        <div class="product-gallery">
+          <div class="product-gallery-main" id="main-image">
+            ${renderProductImageMarkup(product.img, 500, product.name)}
+          </div>
+          <div class="product-gallery-thumbs" id="thumbs">
+            ${[product.img, product.img, product.img].map((img, i) => `
+              <button class="thumb-btn ${i===0?'active':''}" data-idx="${i}" onclick="selectThumb(this)">
+                <div style="width:64px;height:64px;border-radius:var(--r-sm);overflow:hidden">${renderProductImageMarkup(img, 64, product.name)}</div>
+              </button>`).join('')}
+          </div>
+        </div>
+
+        <!-- Info -->
+        <div class="product-info">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:8px">
+            <div>
+              ${product.badge ? `<span class="badge badge-${product.badge==='Bestseller'?'accent':product.badge==='Yangi'?'green':product.badge==='Top'?'purple':'red'}" style="margin-bottom:10px;display:inline-block">${product.badge}</span>` : ''}
+              <p style="font-size:14px;color:var(--ink-3);margin-bottom:4px">${product.brand}</p>
+              ${product.subcategory ? `<p style="font-size:13px;color:var(--accent);margin-bottom:8px">${product.category} / ${product.subcategory}</p>` : ''}
+              <h1 style="font-size:32px;font-weight:600;letter-spacing:-1px;line-height:1.15">${product.name}</h1>
+            </div>
+            <button id="wish-btn" onclick="toggleWish()" style="width:44px;height:44px;border-radius:22px;background:var(--bg);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.2s">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="${isWished ? 'var(--red)' : 'none'}">
+                <path d="M10 16s-7-4.5-7-9a4 4 0 0 1 7-2.65A4 4 0 0 1 17 7c0 4.5-7 9-7 9z" stroke="${isWished ? 'var(--red)' : 'var(--ink-2)'}" stroke-width="1.5" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Rating -->
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+            <div class="stars">${renderStars(product.rating, 14)}</div>
+            <span style="font-size:15px;font-weight:600">${product.rating}</span>
+            <span style="font-size:14px;color:var(--ink-3)">(${product.reviews.toLocaleString()} sharh)</span>
+          </div>
+
+          <!-- Price -->
+          <div style="display:flex;align-items:center;gap:14px;margin-bottom:24px">
+            <span style="font-size:36px;font-weight:700;font-family:var(--font-mono);letter-spacing:-1px">${fmtPrice(product.price)}</span>
+            ${product.oldPrice ? `
+              <div>
+                <span style="font-size:18px;color:var(--ink-3);text-decoration:line-through;font-family:var(--font-mono)">${fmtPrice(product.oldPrice)}</span>
+                <span class="badge badge-red" style="margin-left:6px">-${discount}%</span>
+              </div>` : ''}
+          </div>
+
+          <div class="divider" style="margin-bottom:24px"></div>
+
+          <!-- Colors -->
+          ${product.colors.length > 1 ? `
+          <div style="margin-bottom:20px">
+            <p style="font-size:13px;font-weight:500;color:var(--ink-2);margin-bottom:10px">Rang tanlang</p>
+            <div style="display:flex;gap:10px" id="color-picker">
+              ${product.colors.map((c,i) => `
+                <button onclick="selectColor(this,${i})" data-idx="${i}" class="color-swatch ${i===0?'selected':''}" style="width:32px;height:32px;border-radius:50%;background:${c};border:2px solid ${i===0?'var(--ink)':'transparent'};outline:${i===0?'2px solid var(--border)':'none'};outline-offset:2px;transition:all 0.15s"></button>
+              `).join('')}
+            </div>
+          </div>` : ''}
+
+          <!-- Sizes -->
+          ${product.sizes.length > 0 ? `
+          <div style="margin-bottom:24px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+              <p style="font-size:13px;font-weight:500;color:var(--ink-2)">O'lcham tanlang</p>
+              <a href="#" style="font-size:12px;color:var(--accent)">O'lchamlar jadvali →</a>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px" id="size-picker">
+              ${product.sizes.map((sz,i) => `
+                <button onclick="selectSize(this)" data-size="${sz}" class="size-btn ${i===0?'active':''}">${sz}</button>
+              `).join('')}
+            </div>
+          </div>` : ''}
+
+          <!-- Qty + Add to cart -->
+          <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px">
+            <div class="qty-control">
+              <button class="qty-btn" onclick="changeQty(-1)">−</button>
+              <span class="qty-num" id="qty-display">1</span>
+              <button class="qty-btn" onclick="changeQty(1)">+</button>
+            </div>
+            <button class="btn btn-primary" style="flex:1" onclick="addToCartAndAnimate(this)">
+              Savatchaga qo'shish
+            </button>
+            <button onclick="buyNow()" class="btn btn-secondary" style="flex:1">
+              Hozir sotib ol →
+            </button>
+          </div>
+
+          ${product.stock <= 5 ? `<p style="font-size:13px;color:var(--red);margin-bottom:16px">⚠ Faqat ${product.stock} ta qoldi</p>` : ''}
+
+          <!-- Trust badges -->
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:24px">
+            ${[
+              {icon:'🚚', text:'1-3 kun yetkazish'},
+              {icon:'↩', text:'30 kun qaytarish'},
+              {icon:'🔒', text:'Xavfsiz to\'lov'},
+            ].map(b => `
+              <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 8px;background:var(--bg);border-radius:var(--r-md);text-align:center">
+                <span style="font-size:18px">${b.icon}</span>
+                <span style="font-size:11px;color:var(--ink-2)">${b.text}</span>
+              </div>`).join('')}
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabs: Description / Features / Reviews -->
+      <div style="margin-top:60px" id="tabs-section">
+        <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:32px">
+          ${['Tavsif','Xususiyatlar','Sharhlar'].map((t,i) => `
+            <button onclick="switchTab(${i})" class="tab-btn ${i===0?'active':''}" data-tab="${i}">${t}</button>
+          `).join('')}
+        </div>
+
+        <div id="tab-0" class="tab-panel">
+          <p style="font-size:16px;line-height:1.8;color:var(--ink-2);max-width:680px">${product.desc}</p>
+        </div>
+
+        <div id="tab-1" class="tab-panel" style="display:none">
+          <ul style="display:flex;flex-direction:column;gap:12px;max-width:480px">
+            ${product.features.map(f => `
+              <li style="display:flex;align-items:center;gap:12px;font-size:15px">
+                <span style="width:20px;height:20px;border-radius:50%;background:var(--accent-light);color:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                  <svg width="10" height="10" viewBox="0 0 10 10"><path d="M1.5 5l2.5 2.5 4.5-5" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+                </span>
+                ${f}
+              </li>`).join('')}
+          </ul>
+        </div>
+
+        <div id="tab-2" class="tab-panel" style="display:none">
+          <div class="review-grid" style="display:grid;grid-template-columns:280px 1fr;gap:40px;align-items:start">
+            <div style="background:var(--bg);border-radius:var(--r-xl);padding:32px;text-align:center">
+              <p style="font-size:64px;font-weight:700;font-family:var(--font-mono);letter-spacing:-2px;line-height:1">${product.rating}</p>
+              <div class="stars" style="justify-content:center;margin:8px 0">${renderStars(product.rating, 18)}</div>
+              <p style="font-size:14px;color:var(--ink-3)">${product.reviews.toLocaleString()} sharh</p>
+              <div style="margin-top:20px;display:flex;flex-direction:column;gap:6px">
+                ${[5,4,3,2,1].map(n => {
+                  const pct = n===5?72:n===4?18:n===3?6:n===2?3:1;
+                  return `<div style="display:flex;align-items:center;gap:8px;font-size:12px">
+                    <span style="width:8px;color:var(--ink-3)">${n}</span>
+                    <div style="flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+                      <div style="width:${pct}%;height:100%;background:var(--accent);border-radius:3px"></div>
+                    </div>
+                    <span style="width:28px;color:var(--ink-3)">${pct}%</span>
+                  </div>`;
+                }).join('')}
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:20px">
+              ${REVIEWS.map(r => `
+                <div class="card card-pad">
+                  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+                    <div>
+                      <p style="font-weight:500;margin-bottom:4px">${r.name}</p>
+                      <div class="stars">${renderStars(r.rating)}</div>
+                    </div>
+                    <span style="font-size:12px;color:var(--ink-3)">${fmtDate(r.date)}</span>
+                  </div>
+                  <p style="font-size:14px;color:var(--ink-2);line-height:1.7;margin-top:10px">${r.text}</p>
+                </div>`).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Related products -->
+      ${related.length > 0 ? `
+      <div style="margin-top:72px">
+        <h2 style="font-size:24px;font-weight:600;letter-spacing:-0.5px;margin-bottom:24px">O'xshash mahsulotlar</h2>
+        <div class="related-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px">
+          ${related.map(p => `
+            <a href="${ROUTES.product}?id=${p.id}" class="related-card">
+              <div style="aspect-ratio:1;overflow:hidden;border-radius:var(--r-md) var(--r-md) 0 0;background:var(--bg)">${renderProductImageMarkup(p.img, 300, p.name)}</div>
+              <div style="padding:14px 16px 16px">
+                <p style="font-size:11px;color:var(--ink-3);margin-bottom:2px">${p.brand}</p>
+                ${p.subcategory ? `<p style="font-size:11px;color:var(--accent);margin-bottom:4px">${p.subcategory}</p>` : ''}
+                <p style="font-size:15px;font-weight:500;margin-bottom:8px">${p.name}</p>
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <span style="font-family:var(--font-mono);font-size:16px;font-weight:600">${fmtPrice(p.price)}</span>
+                  <div class="stars">${renderStars(p.rating)}</div>
+                </div>
+              </div>
+            </a>`).join('')}
+        </div>
+      </div>` : ''}
+    </div>
+  `;
+
+  buildFooter();
+
+  // ── Interactive logic ────────────────────────────────────────────────────
+  let qty = 1;
+
+  window.changeQty = function(delta) {
+    qty = Math.max(1, Math.min(product.stock, qty + delta));
+    document.getElementById('qty-display').textContent = qty;
+  };
+
+  window.selectThumb = function(btn) {
+    document.querySelectorAll('.thumb-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  };
+
+  window.selectColor = function(btn, idx) {
+    document.querySelectorAll('.color-swatch').forEach((b,i) => {
+      b.style.borderColor = 'transparent';
+      b.style.outline = 'none';
+    });
+    btn.style.borderColor = 'var(--ink)';
+    btn.style.outline = '2px solid var(--border)';
+    btn.style.outlineOffset = '2px';
+  };
+
+  window.selectSize = function(btn) {
+    document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  };
+
+  window.switchTab = function(idx) {
+    document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', i===idx));
+    document.querySelectorAll('.tab-panel').forEach((p,i) => p.style.display = i===idx ? 'block' : 'none');
+  };
+
+  window.toggleWish = function() {
+    const added = Wishlist.toggle(product.id);
+    const btn = document.getElementById('wish-btn');
+    const svg = btn.querySelector('svg path');
+    if (added) {
+      svg.setAttribute('fill', 'var(--red)');
+      svg.setAttribute('stroke', 'var(--red)');
+      showToast('Istaklar ro\'yxatiga qo\'shildi', 'success');
+    } else {
+      svg.setAttribute('fill', 'none');
+      svg.setAttribute('stroke', 'var(--ink-2)');
+      showToast('Istaklar ro\'yxatidan olib tashlandi');
+    }
+  };
+
+  // ── Sticky bottom bar (mobile) ───────────────────────────────────────────
+  var stickyBar = document.createElement('div');
+  stickyBar.className = 'product-sticky-bar';
+  stickyBar.innerHTML = `
+    <div style="flex:1;min-width:0">
+      <p style="font-size:13px;color:var(--ink-3);margin-bottom:1px">${product.brand}</p>
+      <p style="font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${product.name}</p>
+    </div>
+    <div style="text-align:right;flex-shrink:0">
+      <p style="font-family:var(--font-mono);font-weight:700;font-size:18px">${fmtPrice(product.price)}</p>
+    </div>
+    <button id="sticky-add-btn" style="background:var(--accent);color:#fff;padding:12px 20px;border-radius:var(--r-md);font-size:15px;font-weight:500;white-space:nowrap;border:none;cursor:pointer;flex-shrink:0">
+      + Savat
+    </button>`;
+  document.body.appendChild(stickyBar);
+
+  document.getElementById('sticky-add-btn').addEventListener('click', function() {
+    Cart.add(product, qty);
+    var btn = document.getElementById('sticky-add-btn');
+    var orig = btn.textContent;
+    btn.textContent = 'Qoshildi!';
+    btn.style.background = 'var(--green)';
+    showToast(product.name + ' savatga qoshildi', 'success');
+    setTimeout(function() { btn.textContent = orig; btn.style.background = ''; }, 1200);
+  });
+
+  window.addToCartAndAnimate = function(btn) {
+    Cart.add(product, qty);
+    const orig = btn.textContent;
+    btn.textContent = '✓ Qo\'shildi!';
+    btn.style.background = 'var(--green)';
+    showToast(`${product.name} savatchaga qo'shildi`, 'success');
+    setTimeout(() => { btn.textContent = orig; btn.style.background = ''; }, 1200);
+  };
+
+  window.buyNow = function() {
+    Cart.add(product, qty);
+    window.location = ROUTES.checkout;
+  };
+});
+</script>
+{% endblock %}

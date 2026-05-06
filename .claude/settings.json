@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(kill %1)",
+      "Bash(lsof -ti:8765)",
+      "Bash(xargs kill *)"
+    ]
+  }
+}
