@@ -15,6 +15,25 @@ var ROUTES = window.NEXUS_ROUTES || {
 
 var PAGE_TRANSITION_KEY = 'uzshop_page_transition';
 var PAGE_TRANSITION_MIN_MS = 1000;
+var PAGE_LOADER_LINES = [
+  {
+    title: "Yangi vitrina ochilmoqda",
+    detail: "Trend mahsulotlar va premium tanlovlar joylashtirilmoqda...",
+  },
+  {
+    title: "Sizga mos assortiment kelmoqda",
+    detail: "Katalog, tavsiyalar va savdo oqimi tayyorlanmoqda...",
+  },
+  {
+    title: "Eng yaxshi takliflar yig'ilmoqda",
+    detail: "Narxlar, reytinglar va sotib olish yo'li optimallashtirilmoqda...",
+  },
+  {
+    title: "Xarid tajribasi ishga tushmoqda",
+    detail: "Savat, checkout va tezkor mahsulot ko'rinishi yuklanmoqda...",
+  }
+];
+var pageLoaderRotationTimer = null;
 
 function normalizePathname(value) {
   if (!value) return '/';
@@ -48,16 +67,46 @@ function ensurePageLoader() {
       '<div class="page-loader__spinner"></div>' +
       '<div class="page-loader__copy">' +
         '<p class="page-loader__eyebrow">uzshop</p>' +
-        '<h2>Sahifa tayyorlanmoqda</h2>' +
-        '<p>Premium storefront yuklanmoqda...</p>' +
+        '<h2 id="page-loader-title">Yangi vitrina ochilmoqda</h2>' +
+        '<p id="page-loader-detail">Trend mahsulotlar va premium tanlovlar joylashtirilmoqda...</p>' +
+        '<div class="page-loader__chips">' +
+          '<span class="page-loader__chip">global katalog</span>' +
+          '<span class="page-loader__chip">tezkor checkout</span>' +
+          '<span class="page-loader__chip">premium picks</span>' +
+        '</div>' +
       '</div>' +
     '</div>';
   document.body.appendChild(loader);
   return loader;
 }
 
+function setPageLoaderCopy(index) {
+  var lines = PAGE_LOADER_LINES[index % PAGE_LOADER_LINES.length];
+  var title = document.getElementById('page-loader-title');
+  var detail = document.getElementById('page-loader-detail');
+  if (title) title.textContent = lines.title;
+  if (detail) detail.textContent = lines.detail;
+}
+
+function startPageLoaderRotation() {
+  if (pageLoaderRotationTimer) return;
+  var index = Math.floor(Math.random() * PAGE_LOADER_LINES.length);
+  setPageLoaderCopy(index);
+  pageLoaderRotationTimer = window.setInterval(function() {
+    index += 1;
+    setPageLoaderCopy(index);
+  }, 900);
+}
+
+function stopPageLoaderRotation() {
+  if (!pageLoaderRotationTimer) return;
+  window.clearInterval(pageLoaderRotationTimer);
+  pageLoaderRotationTimer = null;
+}
+
 function showPageLoader() {
   var loader = ensurePageLoader();
+  startPageLoaderRotation();
   loader.classList.add('is-visible');
   document.body.classList.add('page-loading');
 }
@@ -65,6 +114,7 @@ function showPageLoader() {
 function hidePageLoader() {
   var loader = document.getElementById('page-transition-loader');
   if (loader) loader.classList.remove('is-visible');
+  stopPageLoaderRotation();
   document.body.classList.remove('page-loading');
 }
 

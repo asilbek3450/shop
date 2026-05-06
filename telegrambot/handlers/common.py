@@ -17,7 +17,9 @@ from telegrambot.keyboards.reply import (
     main_menu_keyboard,
     payment_keyboard,
     phone_request_keyboard,
+    product_button_label,
     product_actions_keyboard,
+    products_keyboard,
     remove_keyboard,
     subcategories_keyboard,
 )
@@ -56,7 +58,7 @@ def upsert_profile(message: Message):
 
 @sync_to_async
 def get_profile(user_id):
-    return TelegramProfile.objects.filter(user_id=user_id).first()
+    return TelegramProfile.objects.select_related("selected_category").filter(user_id=user_id).first()
 
 
 @sync_to_async
@@ -89,7 +91,10 @@ def get_products_for(category_name, subcategory=None, limit=10):
     )
     if subcategory:
         queryset = queryset.filter(subcategory=subcategory)
-    return list(queryset.order_by("featured_order", "name")[:limit])
+    queryset = queryset.order_by("featured_order", "name")
+    if limit:
+        queryset = queryset[:limit]
+    return list(queryset)
 
 
 @sync_to_async
@@ -108,7 +113,26 @@ def get_product(product_id):
 
 @sync_to_async
 def get_recent_orders(user_id, limit=5):
-    return list(Order.objects.filter(telegram_user_id=user_id).order_by("-created_at")[:limit])
+    return list(
+        Order.objects.filter(telegram_user_id=user_id)
+        .prefetch_related("items")
+        .order_by("-created_at")[:limit]
+    )
+
+
+@sync_to_async
+def get_product_by_choice(category_name, choice_label, subcategory=None):
+    products = Product.objects.select_related("category").filter(
+        is_active=True,
+        category__is_active=True,
+        category__name=category_name,
+    )
+    if subcategory:
+        products = products.filter(subcategory=subcategory)
+    for product in products.order_by("featured_order", "name"):
+        if product_button_label(product.name) == choice_label:
+            return product
+    return None
 
 
 @sync_to_async
@@ -173,6 +197,40 @@ def cart_summary_text(cart):
     return "\n".join(lines)
 
 
+def order_history_text(orders):
+    if not orders:
+        return "Sizda hali buyurtma yo'q."
+
+    lines = ["📦 <b>So'nggi buyurtmalaringiz</b>", ""]
+    for order in orders:
+        order_items = list(order.items.all())
+        lines.append(
+            f"• <code>{order.code}</code> — {format_price(order.total)} — {order.get_status_display()}"
+        )
+        lines.append(
+            f"  {order.created_at.strftime('%d.%m.%Y %H:%M')} | {dict(Order.DELIVERY_CHOICES)[order.delivery_method]} | {dict(Order.PAYMENT_CHOICES)[order.payment_method]}"
+        )
+        item_names = [item.product_name for item in order_items[:3]]
+        if item_names:
+            suffix = ""
+            if len(order_items) > 3:
+                suffix = f" va yana {len(order_items) - 3} ta"
+            lines.append(f"  🧾 " + ", ".join(item_names) + suffix)
+        lines.append("")
+    return "\n".join(lines).strip()
+
+
+def product_browser_intro(category, subcategory, products):
+    category_line = f"{category.emoji} <b>{category.name}</b>"
+    if subcategory:
+        category_line += f" → <b>{subcategory}</b>"
+    return (
+        f"{category_line}\n"
+        f"Topildi: <b>{len(products)}</b> ta mahsulot.\n"
+        "Quyidagi tugmalardan mahsulotni tanlang yoki kartalardan savatga qo'shing."
+    )
+
+
 def is_remote_image(value):
     return isinstance(value, str) and value.lower().startswith(("http://", "https://"))
 
@@ -189,6 +247,15 @@ async def send_product_card(message: Message, product):
     await message.answer(caption, reply_markup=keyboard, disable_web_page_preview=False)
 
 
+async def send_product_browser(message: Message, category, products, subcategory=None, back_label="⬅️ Kategoriyalar"):
+    await message.answer(
+        product_browser_intro(category, subcategory, products),
+        reply_markup=products_keyboard(products, back_label=back_label),
+    )
+    for product in products:
+        await send_product_card(message, product)
+
+
 # ──────────────────────────── Start / main menu ────────────────────────────
 
 
@@ -197,7 +264,7 @@ async def start(message: Message, state: FSMContext):
     await state.clear()
     await upsert_profile(message)
     await message.answer(
-        "👋 NEXUS botiga xush kelibsiz!\n\n"
+        "👋 uzshop botiga xush kelibsiz!\n\n"
         "Kategoriyalar bo'yicha mahsulotlarni ko'ring, savatga qo'shing va to'g'ridan-to'g'ri "
         "shu yerdan buyurtma bering. Buyurtmalar admin panelga tushadi.",
         reply_markup=main_menu_keyboard(),
@@ -281,21 +348,20 @@ async def show_subcategory_products(message: Message):
         return
 
     subcategory = message.text.removeprefix("📂 ").strip()
-    products = await get_products_for(profile.selected_category.name, subcategory=subcategory)
+    category = profile.selected_category
+    products = await get_products_for(category.name, subcategory=subcategory)
     if not products:
         await message.answer("Bu subkategoriyada mahsulot yo'q.")
         return
 
     await save_profile(profile, selected_subcategory=subcategory)
-    await message.answer(
-        f"<b>{profile.selected_category.emoji} {profile.selected_category.name}</b> → {subcategory}\n"
-        f"Topildi: {len(products)} ta",
-        reply_markup=subcategories_keyboard(
-            await get_subcategories_for(profile.selected_category.name)
-        ),
+    await send_product_browser(
+        message,
+        category,
+        products,
+        subcategory=subcategory,
+        back_label="⬅️ Kategoriyalar",
     )
-    for product in products:
-        await send_product_card(message, product)
 
 
 @router.message(F.text.regexp(r"^.+\s.+$"))
@@ -319,12 +385,12 @@ async def show_category(message: Message):
                 reply_markup=categories_keyboard(categories),
             )
             return
-        await message.answer(
-            f"{category.emoji} {category.name} bo'yicha mahsulotlar:",
-            reply_markup=categories_keyboard(categories),
+        await send_product_browser(
+            message,
+            category,
+            products,
+            back_label="⬅️ Kategoriyalar",
         )
-        for product in products:
-            await send_product_card(message, product)
         return
 
     await message.answer(
@@ -332,6 +398,24 @@ async def show_category(message: Message):
         f"Subkategoriyalardan birini tanlang ({len(subs)} ta):",
         reply_markup=subcategories_keyboard(subs),
     )
+
+
+@router.message(F.text.startswith("🛍 "))
+async def show_product_from_keyboard(message: Message):
+    profile = await get_profile(message.from_user.id)
+    if not profile or not profile.selected_category:
+        await message.answer("Avval katalogdan kategoriya tanlang.", reply_markup=main_menu_keyboard())
+        return
+
+    product = await get_product_by_choice(
+        profile.selected_category.name,
+        message.text,
+        subcategory=profile.selected_subcategory or None,
+    )
+    if not product:
+        await message.answer("Mahsulot topilmadi. Qayta tanlab ko'ring.", reply_markup=main_menu_keyboard())
+        return
+    await send_product_card(message, product)
 
 
 # ──────────────────────────── Cart ────────────────────────────
@@ -363,7 +447,13 @@ async def add_to_cart(callback: CallbackQuery):
         )
 
     await save_profile(profile, cart=cart)
+    total_qty = sum(int(item.get("qty", 1)) for item in cart)
     await callback.answer(f"✅ {product.name} savatga qo'shildi", show_alert=False)
+    await callback.message.answer(
+        f"🛒 <b>{product.name}</b> savatga qo'shildi.\n"
+        f"Savatda: <b>{total_qty}</b> ta mahsulot.",
+        reply_markup=cart_actions_keyboard(),
+    )
 
 
 @router.callback_query(F.data.startswith("site:"))
@@ -383,6 +473,8 @@ async def show_cart(message: Message):
     profile = await get_profile(message.from_user.id)
     cart = (profile.cart if profile else []) or []
     text = cart_summary_text(cart)
+    if cart:
+        text += "\n\nDavom etish uchun buyurtma bering yoki katalogga qayting."
     await message.answer(
         text,
         reply_markup=cart_actions_keyboard() if cart else main_menu_keyboard(),
@@ -408,6 +500,9 @@ async def begin_order(message: Message, state: FSMContext):
         await message.answer("Savat bo'sh. Avval mahsulot qo'shing.", reply_markup=main_menu_keyboard())
         return
 
+    pending_order = (profile.pending_order if profile else {}) or {}
+    if pending_order:
+        await state.update_data(**pending_order)
     await message.answer(
         cart_summary_text(cart) + "\n\nYetkazib berish usulini tanlang:",
         reply_markup=delivery_keyboard(),
@@ -422,6 +517,11 @@ async def pick_delivery(callback: CallbackQuery, state: FSMContext):
         await callback.answer("Noto'g'ri usul.", show_alert=True)
         return
     await state.update_data(delivery=method)
+    profile = await get_profile(callback.from_user.id)
+    if profile:
+        pending = dict(profile.pending_order or {})
+        pending["delivery"] = method
+        await save_profile(profile, pending_order=pending)
     await callback.message.edit_reply_markup(reply_markup=None)
     await callback.message.answer(
         f"🚚 Yetkazish: <b>{dict(Order.DELIVERY_CHOICES)[method]}</b>\n\nTo'lov usulini tanlang:",
@@ -439,6 +539,10 @@ async def pick_payment(callback: CallbackQuery, state: FSMContext):
     await state.update_data(payment=method)
     await callback.message.edit_reply_markup(reply_markup=None)
     profile = await get_profile(callback.from_user.id)
+    if profile:
+        pending = dict(profile.pending_order or {})
+        pending["payment"] = method
+        await save_profile(profile, pending_order=pending)
     default_name = " ".join(filter(None, [profile.first_name, profile.last_name])).strip() if profile else ""
     prompt = "👤 Ism-familiyangizni yuboring"
     if default_name:
@@ -456,6 +560,11 @@ async def capture_name(message: Message, state: FSMContext):
         return
     parts = full_name.split(maxsplit=1)
     await state.update_data(first_name=parts[0], last_name=parts[1] if len(parts) > 1 else "")
+    profile = await get_profile(message.from_user.id)
+    if profile:
+        pending = dict(profile.pending_order or {})
+        pending.update({"first_name": parts[0], "last_name": parts[1] if len(parts) > 1 else ""})
+        await save_profile(profile, pending_order=pending)
     await message.answer(
         "📱 Endi telefon raqamingizni yuboring (yoki tugmadan foydalaning):",
         reply_markup=phone_request_keyboard(),
@@ -466,6 +575,9 @@ async def capture_name(message: Message, state: FSMContext):
 @router.message(CheckoutStates.waiting_phone, F.text == "⬅️ Bekor qilish")
 async def cancel_checkout(message: Message, state: FSMContext):
     await state.clear()
+    profile = await get_profile(message.from_user.id)
+    if profile:
+        await save_profile(profile, pending_order={})
     await message.answer("Buyurtma bekor qilindi.", reply_markup=main_menu_keyboard())
 
 
@@ -487,9 +599,18 @@ async def capture_phone_text(message: Message, state: FSMContext):
 
 async def _continue_after_phone(message: Message, state: FSMContext, phone: str):
     await state.update_data(phone=phone)
+    profile = await get_profile(message.from_user.id)
+    if profile:
+        pending = dict(profile.pending_order or {})
+        pending["phone"] = phone
+        await save_profile(profile, phone=phone, pending_order=pending)
     data = await state.get_data()
     if data.get("delivery") == Order.DELIVERY_PICKUP:
         await state.update_data(address="Do'kondan olib ketish")
+        if profile:
+            pending = dict(profile.pending_order or {})
+            pending["address"] = "Do'kondan olib ketish"
+            await save_profile(profile, pending_order=pending)
         await message.answer(
             "📝 Buyurtmaga qo'shimcha izoh bormi? Bo'lmasa <b>—</b> deb yozing:",
             reply_markup=remove_keyboard(),
@@ -511,6 +632,11 @@ async def capture_address(message: Message, state: FSMContext):
         await message.answer("Manzil juda qisqa. Aniqroq yozing:")
         return
     await state.update_data(address=address)
+    profile = await get_profile(message.from_user.id)
+    if profile:
+        pending = dict(profile.pending_order or {})
+        pending["address"] = address
+        await save_profile(profile, pending_order=pending)
     await message.answer("📝 Buyurtmaga qo'shimcha izoh bormi? Bo'lmasa <b>—</b> deb yozing:")
     await state.set_state(CheckoutStates.waiting_note)
 
@@ -521,8 +647,12 @@ async def capture_note_and_confirm(message: Message, state: FSMContext):
     if note in {"-", "—", "yo'q", "yo`q"}:
         note = ""
     await state.update_data(note=note)
-
     profile = await get_profile(message.from_user.id)
+    if profile:
+        pending = dict(profile.pending_order or {})
+        pending["note"] = note
+        await save_profile(profile, pending_order=pending)
+
     cart = (profile.cart if profile else []) or []
     data = await state.get_data()
     delivery = data.get("delivery", Order.DELIVERY_STANDARD)
@@ -552,6 +682,9 @@ async def capture_note_and_confirm(message: Message, state: FSMContext):
 @router.callback_query(F.data == "order:cancel")
 async def cancel_order(callback: CallbackQuery, state: FSMContext):
     await state.clear()
+    profile = await get_profile(callback.from_user.id)
+    if profile:
+        await save_profile(profile, pending_order={})
     await callback.message.edit_reply_markup(reply_markup=None)
     await callback.message.answer("❌ Buyurtma bekor qilindi.", reply_markup=main_menu_keyboard())
     await callback.answer()
@@ -590,7 +723,8 @@ async def confirm_order(callback: CallbackQuery, state: FSMContext):
         "🎉 <b>Buyurtmangiz qabul qilindi!</b>\n\n"
         f"Buyurtma raqami: <code>{order.code}</code>\n"
         f"💰 Jami: <b>{format_price(order.total)}</b>\n\n"
-        "Tez orada operator siz bilan bog'lanadi.",
+        "Tez orada operator siz bilan bog'lanadi.\n"
+        "Yangi mahsulotlar uchun yana katalogga qaytishingiz mumkin.",
         reply_markup=main_menu_keyboard(),
     )
     await callback.answer("✅ Yuborildi")
@@ -605,9 +739,4 @@ async def show_orders(message: Message):
     if not orders:
         await message.answer("Sizda hali buyurtma yo'q.", reply_markup=main_menu_keyboard())
         return
-    lines = ["📦 <b>So'nggi buyurtmalaringiz:</b>", ""]
-    for order in orders:
-        lines.append(
-            f"• <code>{order.code}</code> — {format_price(order.total)} — {order.get_status_display()}"
-        )
-    await message.answer("\n".join(lines), reply_markup=main_menu_keyboard())
+    await message.answer(order_history_text(orders), reply_markup=main_menu_keyboard())

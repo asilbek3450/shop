@@ -122,6 +122,7 @@ body.page-loading {
 .page-loader__copy {
   display: grid;
   gap: 6px;
+  justify-items: center;
 }
 .page-loader__eyebrow {
   font-family: var(--font-mono);
@@ -133,10 +134,31 @@ body.page-loading {
 .page-loader__copy h2 {
   font-size: clamp(28px, 4vw, 40px);
   letter-spacing: -0.05em;
+  max-width: 14ch;
+  text-wrap: balance;
 }
 .page-loader__copy p:last-child {
   color: var(--ink-2);
   font-size: 15px;
+  max-width: 42ch;
+  line-height: 1.7;
+}
+.page-loader__chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+.page-loader__chip {
+  padding: 9px 14px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.72);
+  border: 1px solid rgba(17,17,16,0.08);
+  color: var(--ink-2);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.04);
 }
 
 /* ── Scroll FAB (down/up toggle) ─────────────────────────────────────────── */

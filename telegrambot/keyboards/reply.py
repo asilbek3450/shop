@@ -36,8 +36,25 @@ def categories_keyboard(categories):
 def subcategories_keyboard(subcategories):
     labels = [f"📂 {name}" for name in subcategories]
     rows = chunk_buttons(labels)
+    rows.append([KeyboardButton(text="🛒 Savat"), KeyboardButton(text="📦 Buyurtmalarim")])
     rows.append([KeyboardButton(text="⬅️ Kategoriyalar")])
     return ReplyKeyboardMarkup(keyboard=rows, resize_keyboard=True)
+
+
+def products_keyboard(products, back_label="⬅️ Kategoriyalar"):
+    labels = [product_button_label(product.name) for product in products]
+    rows = [[KeyboardButton(text=label)] for label in labels]
+    rows.append([KeyboardButton(text="🛒 Savat"), KeyboardButton(text="✅ Buyurtma berish")])
+    rows.append([KeyboardButton(text="📦 Buyurtmalarim"), KeyboardButton(text="🔥 Tavsiyalar")])
+    rows.append([KeyboardButton(text=back_label), KeyboardButton(text="⬅️ Bosh menyu")])
+    return ReplyKeyboardMarkup(keyboard=rows, resize_keyboard=True)
+
+
+def product_button_label(name):
+    compact = (name or "").strip()
+    if len(compact) > 42:
+        compact = compact[:39].rstrip() + "..."
+    return f"🛍 {compact}"
 
 
 def cart_actions_keyboard():
