@@ -15,25 +15,98 @@ var ROUTES = window.NEXUS_ROUTES || {
 
 var PAGE_TRANSITION_KEY = 'uzshop_page_transition';
 var PAGE_TRANSITION_MIN_MS = 1000;
-var PAGE_LOADER_LINES = [
-  {
-    title: "Yangi vitrina ochilmoqda",
-    detail: "Trend mahsulotlar va premium tanlovlar joylashtirilmoqda...",
+var PAGE_LOADER_THEMES = {
+  default: {
+    eyebrow: 'uzshop',
+    chips: ['global katalog', 'tezkor checkout', 'premium picks'],
+    lines: [
+      {
+        title: "Yangi vitrina ochilmoqda",
+        detail: "Trend mahsulotlar va premium tanlovlar joylashtirilmoqda...",
+      },
+      {
+        title: "Sizga mos assortiment kelmoqda",
+        detail: "Katalog, tavsiyalar va savdo oqimi tayyorlanmoqda...",
+      },
+      {
+        title: "Eng yaxshi takliflar yig'ilmoqda",
+        detail: "Narxlar, reytinglar va sotib olish yo'li optimallashtirilmoqda...",
+      },
+      {
+        title: "Xarid tajribasi ishga tushmoqda",
+        detail: "Savat, checkout va tezkor mahsulot ko'rinishi yuklanmoqda...",
+      }
+    ]
   },
-  {
-    title: "Sizga mos assortiment kelmoqda",
-    detail: "Katalog, tavsiyalar va savdo oqimi tayyorlanmoqda...",
+  shop: {
+    eyebrow: "shop",
+    chips: ['global katalog', 'smart filter', 'premium picks'],
+    lines: [
+      {
+        title: "Yangi vitrina ochilmoqda",
+        detail: "Kategoriya, narx va trendlar bo'yicha assortiment saralanmoqda...",
+      },
+      {
+        title: "Sizga mos assortiment kelmoqda",
+        detail: "Top mahsulotlar va bestsellerlar bir joyga yig'ilmoqda...",
+      },
+      {
+        title: "Eng yaxshi takliflar yig'ilmoqda",
+        detail: "Chegirmalar, reytinglar va stock holati yangilanmoqda...",
+      },
+      {
+        title: "Shop tajribasi ishga tushmoqda",
+        detail: "Qidiruv, filter va kartochkalar tezkor yuklanmoqda...",
+      }
+    ]
   },
-  {
-    title: "Eng yaxshi takliflar yig'ilmoqda",
-    detail: "Narxlar, reytinglar va sotib olish yo'li optimallashtirilmoqda...",
+  product: {
+    eyebrow: 'product',
+    chips: ['aniq tavsif', 'real reyting', 'tezkor savat'],
+    lines: [
+      {
+        title: "Mahsulot sahifasi tayyorlanmoqda",
+        detail: "Rasm, variant va asosiy xususiyatlar yuklanmoqda...",
+      },
+      {
+        title: "Sizga mos konfiguratsiya kelmoqda",
+        detail: "Ranglar, o'lchamlar va mavjudlik holati tekshirilmoqda...",
+      },
+      {
+        title: "Ishonchli tanlovlar yig'ilmoqda",
+        detail: "Sharhlar, reytinglar va related tavsiyalar chiqmoqda...",
+      },
+      {
+        title: "Xaridga tayyor holat ishga tushmoqda",
+        detail: "Savatga qo'shish va buy now oqimi optimallashtirilmoqda...",
+      }
+    ]
   },
-  {
-    title: "Xarid tajribasi ishga tushmoqda",
-    detail: "Savat, checkout va tezkor mahsulot ko'rinishi yuklanmoqda...",
+  checkout: {
+    eyebrow: 'checkout',
+    chips: ['secure checkout', "to'lov oqimi", 'tez tasdiqlash'],
+    lines: [
+      {
+        title: "To'lov sahifasi tayyorlanmoqda",
+        detail: "Buyurtma tarkibi va jami summa qayta hisoblanmoqda...",
+      },
+      {
+        title: "Xavfsiz checkout ishga tushmoqda",
+        detail: "Kontakt ma'lumotlari va yetkazish formasi tekshirilmoqda...",
+      },
+      {
+        title: "Eng qulay to'lov yo'li tanlanmoqda",
+        detail: "Buyurtma yakunlash uchun tezkor marshrut tayyorlanmoqda...",
+      },
+      {
+        title: "Xaridni tasdiqlash jarayoni boshlanmoqda",
+        detail: "Savatcha, manzil va to'lov tafsilotlari sinxronlanmoqda...",
+      }
+    ]
   }
-];
+};
 var pageLoaderRotationTimer = null;
+var pageLoaderTheme = PAGE_LOADER_THEMES.default;
 
 function normalizePathname(value) {
   if (!value) return '/';
@@ -54,6 +127,19 @@ function isPageEndpointChange(url) {
   return currentPath !== nextPath;
 }
 
+function resolveLoaderThemeByPath(pathname) {
+  var path = normalizePathname(pathname || window.location.pathname);
+  var routeMap = [
+    { key: 'checkout', path: normalizePathname(ROUTES.checkout) },
+    { key: 'product', path: normalizePathname(ROUTES.product) },
+    { key: 'shop', path: normalizePathname(ROUTES.shop) },
+  ];
+  for (var i = 0; i < routeMap.length; i++) {
+    if (path === routeMap[i].path) return PAGE_LOADER_THEMES[routeMap[i].key];
+  }
+  return PAGE_LOADER_THEMES.default;
+}
+
 function ensurePageLoader() {
   var existing = document.getElementById('page-transition-loader');
   if (existing) return existing;
@@ -66,10 +152,10 @@ function ensurePageLoader() {
     '<div class="page-loader__panel">' +
       '<div class="page-loader__spinner"></div>' +
       '<div class="page-loader__copy">' +
-        '<p class="page-loader__eyebrow">uzshop</p>' +
+        '<p class="page-loader__eyebrow" id="page-loader-eyebrow">uzshop</p>' +
         '<h2 id="page-loader-title">Yangi vitrina ochilmoqda</h2>' +
         '<p id="page-loader-detail">Trend mahsulotlar va premium tanlovlar joylashtirilmoqda...</p>' +
-        '<div class="page-loader__chips">' +
+        '<div class="page-loader__chips" id="page-loader-chips">' +
           '<span class="page-loader__chip">global katalog</span>' +
           '<span class="page-loader__chip">tezkor checkout</span>' +
           '<span class="page-loader__chip">premium picks</span>' +
@@ -80,8 +166,21 @@ function ensurePageLoader() {
   return loader;
 }
 
+function setPageLoaderTheme(theme) {
+  var nextTheme = theme && theme.lines && theme.lines.length ? theme : PAGE_LOADER_THEMES.default;
+  pageLoaderTheme = nextTheme;
+  var eyebrow = document.getElementById('page-loader-eyebrow');
+  var chipsWrap = document.getElementById('page-loader-chips');
+  if (eyebrow) eyebrow.textContent = nextTheme.eyebrow || 'uzshop';
+  if (chipsWrap) {
+    chipsWrap.innerHTML = (nextTheme.chips || []).map(function(chip) {
+      return '<span class="page-loader__chip">' + chip + '</span>';
+    }).join('');
+  }
+}
+
 function setPageLoaderCopy(index) {
-  var lines = PAGE_LOADER_LINES[index % PAGE_LOADER_LINES.length];
+  var lines = pageLoaderTheme.lines[index % pageLoaderTheme.lines.length];
   var title = document.getElementById('page-loader-title');
   var detail = document.getElementById('page-loader-detail');
   if (title) title.textContent = lines.title;
@@ -90,7 +189,7 @@ function setPageLoaderCopy(index) {
 
 function startPageLoaderRotation() {
   if (pageLoaderRotationTimer) return;
-  var index = Math.floor(Math.random() * PAGE_LOADER_LINES.length);
+  var index = Math.floor(Math.random() * pageLoaderTheme.lines.length);
   setPageLoaderCopy(index);
   pageLoaderRotationTimer = window.setInterval(function() {
     index += 1;
@@ -104,8 +203,9 @@ function stopPageLoaderRotation() {
   pageLoaderRotationTimer = null;
 }
 
-function showPageLoader() {
+function showPageLoader(url) {
   var loader = ensurePageLoader();
+  setPageLoaderTheme(resolveLoaderThemeByPath(url ? getPathnameFromUrl(url) : window.location.pathname));
   startPageLoaderRotation();
   loader.classList.add('is-visible');
   document.body.classList.add('page-loading');
@@ -138,7 +238,7 @@ function navigateWithLoader(url) {
     return;
   }
   persistPageTransition(url);
-  showPageLoader();
+  showPageLoader(url);
   setTimeout(function() {
     window.location.href = url;
   }, 80);
@@ -160,7 +260,7 @@ function restorePendingPageTransition() {
     return;
   }
 
-  showPageLoader();
+  showPageLoader(payload.targetPath);
   var elapsed = Date.now() - Number(payload.startedAt || 0);
   var wait = Math.max(0, PAGE_TRANSITION_MIN_MS - elapsed);
   window.setTimeout(function() {
