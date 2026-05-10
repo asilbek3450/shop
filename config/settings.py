@@ -1,11 +1,13 @@
 import os
-import dj_database_url
 from pathlib import Path
 
-
+import dj_database_url
+from dotenv import load_dotenv
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+load_dotenv(BASE_DIR / ".env")
 
 
 def env(name, default=None):
@@ -34,6 +36,7 @@ CSRF_TRUSTED_ORIGINS = [
 
 SITE_URL = env("SITE_URL", "http://127.0.0.1:8000")
 TELEGRAM_BOT_TOKEN = env("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_BOT_USERNAME = env("TELEGRAM_BOT_USERNAME", "")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -42,11 +45,21 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "accounts",
     "store",
     "catalog",
     "orders",
     "telegrambot",
 ]
+
+AUTH_USER_MODEL = "accounts.User"
+AUTHENTICATION_BACKENDS = [
+    "accounts.backends.PhoneBackend",
+    "django.contrib.auth.backends.ModelBackend",
+]
+LOGIN_URL = "accounts:login"
+LOGIN_REDIRECT_URL = "profile"
+LOGOUT_REDIRECT_URL = "index"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",

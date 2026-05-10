@@ -1,5 +1,5 @@
 from aiogram import F, Router
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandObject, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, Message
@@ -260,7 +260,16 @@ async def send_product_browser(message: Message, category, products, subcategory
 
 
 @router.message(CommandStart())
-async def start(message: Message, state: FSMContext):
+async def start(message: Message, command: CommandObject, state: FSMContext):
+    # Deep-link verification: /start <token> from t.me/<bot>?start=<token>
+    if command.args:
+        from telegrambot.handlers.verification import begin_verification
+
+        await state.clear()
+        if await begin_verification(message, state, command.args):
+            await upsert_profile(message)
+            return
+
     await state.clear()
     await upsert_profile(message)
     await message.answer(

@@ -9,7 +9,8 @@ from aiogram.fsm.storage.redis import RedisStorage
 from django.conf import settings
 from redis.asyncio import Redis
 
-from telegrambot.handlers.common import router
+from telegrambot.handlers.common import router as common_router
+from telegrambot.handlers.verification import router as verification_router
 
 
 logger = logging.getLogger(__name__)
@@ -33,7 +34,10 @@ async def start_bot():
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
     dispatcher = Dispatcher(storage=storage)
-    dispatcher.include_router(router)
+    # verification_router must come first so deep-linked /start payloads
+    # are caught before the catch-all /start in common_router.
+    dispatcher.include_router(verification_router)
+    dispatcher.include_router(common_router)
 
     logger.info("Starting Telegram bot polling")
     try:

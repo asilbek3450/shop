@@ -67,13 +67,13 @@
   <main class="page-wrap">
     <!-- Profile header -->
     <div style="padding:32px 0 0;display:flex;align-items:center;gap:20px;margin-bottom:32px">
-      <div class="avatar" id="avatar-initials">ST</div>
+      <div class="avatar" id="avatar-initials">{{ user.initials }}</div>
       <div>
-        <h1 style="font-size:24px;font-weight:600;letter-spacing:-0.5px" id="profile-name">Sardor Toshmatov</h1>
-        <p style="font-size:14px;color:var(--ink-3)" id="profile-email">sardor@example.com</p>
+        <h1 style="font-size:24px;font-weight:600;letter-spacing:-0.5px" id="profile-name">{{ user.full_name }}</h1>
+        <p style="font-size:14px;color:var(--ink-3)" id="profile-email">{{ user.phone }}</p>
         <div style="display:flex;gap:8px;margin-top:8px">
-          <span class="badge badge-accent">Premium A'zo</span>
-          <span class="badge badge-neutral" id="points-badge">1 240 ball</span>
+          {% if user.is_phone_verified %}<span class="badge badge-accent">✓ Tasdiqlangan</span>{% endif %}
+          {% if user.telegram_username %}<span class="badge badge-neutral">@{{ user.telegram_username }}</span>{% endif %}
         </div>
       </div>
       <div style="margin-left:auto;display:flex;gap:8px">
@@ -101,10 +101,13 @@
           Sozlamalar
         </button>
         <div class="divider" style="margin:8px 0"></div>
-        <button class="sidebar-nav-btn" style="color:var(--red)" onclick="showToast('Tizimdan chiqildi','success');setTimeout(()=>navigateWithLoader(ROUTES.shop),1000)">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 8H2m4-3l-3 3 3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 3h5a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
-          Chiqish
-        </button>
+        <form method="post" action="{% url 'accounts:logout' %}" style="margin:0">
+          {% csrf_token %}
+          <button type="submit" class="sidebar-nav-btn" style="color:var(--red);width:100%">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 8H2m4-3l-3 3 3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 3h5a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+            Chiqish
+          </button>
+        </form>
       </aside>
 
       <!-- Main content area -->
@@ -172,20 +175,21 @@
             <div class="form-row">
               <div class="form-group">
                 <label class="form-label">Ism</label>
-                <input class="form-input" value="Sardor" id="edit-first">
+                <input class="form-input" value="{{ user.first_name }}" id="edit-first">
               </div>
               <div class="form-group">
                 <label class="form-label">Familiya</label>
-                <input class="form-input" value="Toshmatov" id="edit-last">
+                <input class="form-input" value="{{ user.last_name }}" id="edit-last">
               </div>
             </div>
             <div class="form-group">
               <label class="form-label">Elektron pochta</label>
-              <input class="form-input" type="email" value="sardor@example.com" id="edit-email">
+              <input class="form-input" type="email" value="{{ user.email }}" id="edit-email">
             </div>
             <div class="form-group">
               <label class="form-label">Telefon</label>
-              <input class="form-input" type="tel" value="+998 90 123 45 67" id="edit-phone">
+              <input class="form-input" type="tel" value="{{ user.phone }}" id="edit-phone" disabled>
+              <p style="font-size:12px;color:var(--ink-3);margin-top:4px">Telefon raqamni o'zgartirish uchun support bilan bog'laning.</p>
             </div>
             <div class="divider"></div>
             <h3 style="font-size:16px;font-weight:600">Parolni o'zgartirish</h3>
@@ -218,32 +222,36 @@
 
 {% block extra_js %}
 <script>
-// Dummy orders pool
-const DUMMY_ORDERS = [
-  { id:'ORD-A3F2K', date:'2025-04-28T14:22:00', status:'delivering', delivery:'Tezkor', total:538000,
-    items:[{...PRODUCTS[0],qty:1},{...PRODUCTS[1],qty:1}] },
-  { id:'ORD-B9X1M', date:'2025-04-15T09:10:00', status:'delivered', delivery:'Standart', total:49000,
-    items:[{...PRODUCTS[2],qty:1}] },
-  { id:'ORD-C7Z3Q', date:'2025-03-30T16:45:00', status:'delivered', delivery:'Standart', total:1849000,
-    items:[{...PRODUCTS[6],qty:1}] },
-];
+const SERVER_ORDERS = {{ orders_json|safe }};
+const SERVER_WISHLIST_IDS = {{ wishlist_ids_json|safe }};
 
 const STATUS_LABELS = {
+  new:        { label:'Yangi',        cls:'status-confirmed' },
   confirmed:  { label:'Tasdiqlangan', cls:'status-confirmed' },
-  delivering: { label:'Yo\'lda',       cls:'status-delivering' },
+  shipped:    { label:"Yo'lda",        cls:'status-delivering' },
+  delivering: { label:"Yo'lda",        cls:'status-delivering' },
   delivered:  { label:'Yetkazildi',   cls:'status-delivered' },
   cancelled:  { label:'Bekor qilindi',cls:'status-cancelled' },
 };
 
+// Map server orders into the shape the existing renderer expects.
+const ALL_ORDERS = SERVER_ORDERS.map(o => ({
+  id: o.code,
+  date: o.created_at,
+  status: o.status,
+  delivery: o.delivery,
+  total: o.total,
+  items: o.items.map(it => ({ name: it.name, qty: it.qty, img: it.img })),
+}));
+
 document.addEventListener('DOMContentLoaded', () => {
   buildNavbar('profile');
-
-  // Merge real + dummy orders
-  const stored = Store.get('orders', []);
-  const allOrders = [...stored, ...DUMMY_ORDERS];
-  Store.set('_all_orders', allOrders);
-
-  renderOrders(allOrders);
+  Store.set('_all_orders', ALL_ORDERS);
+  // Sync server-side wishlist ids into local Store so the wishlist tab matches.
+  if (typeof Store?.set === 'function') {
+    Store.set('wishlist', SERVER_WISHLIST_IDS);
+  }
+  renderOrders(ALL_ORDERS);
   renderWishlistTab();
   buildFooter();
 });

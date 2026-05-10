@@ -3,7 +3,20 @@
     "allow": [
       "Bash(kill %1)",
       "Bash(lsof -ti:8765)",
-      "Bash(xargs kill *)"
+      "Bash(xargs kill *)",
+      "Bash(python manage.py showmigrations)",
+      "Bash(python manage.py shell -c ' *)",
+      "Bash(python manage.py dumpdata catalog telegrambot --natural-foreign --natural-primary --indent 2 -o /tmp/shop_backup.json)",
+      "Read(//tmp/**)",
+      "Bash(python manage.py dumpdata catalog.Category catalog.Product telegrambot.TelegramProfile --natural-foreign --natural-primary --indent 2 -o /tmp/shop_backup.json)",
+      "Read(//private/tmp/**)",
+      "Bash(PGPASSWORD=postgres dropdb -h localhost -U asilbek shop)",
+      "Bash(PGPASSWORD=postgres createdb -h localhost -U asilbek shop)",
+      "Bash(python manage.py migrate)",
+      "Bash(python manage.py loaddata /tmp/shop_backup.json)",
+      "Bash(python -c ' *)",
+      "Bash(python -c \"import secrets; print\\(secrets.token_urlsafe\\(50\\)\\)\")",
+      "Bash(python -c \"from telegrambot.handlers import common, verification; print\\('common:', common.router.name\\); print\\('verification:', verification.router.name\\); print\\('begin_verification:', verification.begin_verification\\)\")"
     ]
   }
 }

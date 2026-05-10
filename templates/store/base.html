@@ -20,6 +20,23 @@
       confirmation: "{% url 'confirmation' %}"
     };
     window.NEXUS_SITE_URL = "{{ site_url|default:'' }}";
+    window.NEXUS_AUTH = {
+      isAuthenticated: {% if user.is_authenticated %}true{% else %}false{% endif %},
+      {% if user.is_authenticated %}
+      user: {
+        id: {{ user.id }},
+        firstName: "{{ user.first_name|escapejs }}",
+        lastName: "{{ user.last_name|escapejs }}",
+        phone: "{{ user.phone|escapejs }}",
+        initials: "{{ user.initials|escapejs }}"
+      },
+      {% else %}
+      user: null,
+      {% endif %}
+      loginUrl: "{% url 'accounts:login' %}",
+      registerUrl: "{% url 'accounts:register' %}",
+      logoutUrl: "{% url 'accounts:logout' %}"
+    };
     window.__CATALOG_DATA__ = {{ catalog_payload_json|safe }};
   </script>
   {% block extra_head %}{% endblock %}

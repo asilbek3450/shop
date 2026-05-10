@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Category, Product
+from .models import Category, Product, ProductLike, Review, Wishlist
 
 
 @admin.register(Category)
@@ -20,3 +20,27 @@ class ProductAdmin(admin.ModelAdmin):
     search_fields = ("name", "brand", "subcategory", "short_description", "description")
     autocomplete_fields = ("category",)
     list_editable = ("price", "stock", "is_featured", "is_active")
+
+
+@admin.register(Review)
+class ReviewAdmin(admin.ModelAdmin):
+    list_display = ("product", "user", "rating", "is_reply", "is_hidden", "created_at")
+    list_filter = ("rating", "is_hidden")
+    search_fields = ("product__name", "user__phone", "body")
+    autocomplete_fields = ("product", "user", "parent")
+
+    @admin.display(boolean=True, description="Reply?")
+    def is_reply(self, obj):
+        return obj.parent_id is not None
+
+
+@admin.register(ProductLike)
+class ProductLikeAdmin(admin.ModelAdmin):
+    list_display = ("user", "product", "created_at")
+    autocomplete_fields = ("user", "product")
+
+
+@admin.register(Wishlist)
+class WishlistAdmin(admin.ModelAdmin):
+    list_display = ("user", "product", "created_at")
+    autocomplete_fields = ("user", "product")

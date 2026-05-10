@@ -1,0 +1,55 @@
+{% extends "accounts/_auth_base.html" %}
+
+{% block auth %}
+<h1>Ro'yxatdan o'tish</h1>
+<p class="lead">Telegramdagi raqamingiz orqali tasdiqlang.</p>
+
+{% if form.non_field_errors %}
+  <div class="auth-error">{{ form.non_field_errors|join:" / " }}</div>
+{% endif %}
+
+<form method="post" class="auth-form" novalidate>
+  {% csrf_token %}
+
+  <div class="form-row-grid">
+    <div class="auth-field">
+      <label for="id_first_name">Ism</label>
+      <input type="text" id="id_first_name" name="first_name" required
+             value="{{ form.first_name.value|default:'' }}" autocomplete="given-name">
+      {% if form.first_name.errors %}<ul class="errorlist">{% for e in form.first_name.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+    </div>
+    <div class="auth-field">
+      <label for="id_last_name">Familiya</label>
+      <input type="text" id="id_last_name" name="last_name"
+             value="{{ form.last_name.value|default:'' }}" autocomplete="family-name">
+    </div>
+  </div>
+
+  <div class="auth-field">
+    <label for="id_phone">Telefon raqam</label>
+    <input type="tel" id="id_phone" name="phone" required placeholder="+998 90 123 45 67"
+           value="{{ form.phone.value|default:'' }}" autocomplete="tel">
+    <span class="hint">Telegramda ushbu raqam ulangan bo'lishi shart.</span>
+    {% if form.phone.errors %}<ul class="errorlist">{% for e in form.phone.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+  </div>
+
+  <div class="auth-field">
+    <label for="id_password">Parol</label>
+    <input type="password" id="id_password" name="password" required minlength="6" autocomplete="new-password">
+    {% if form.password.errors %}<ul class="errorlist">{% for e in form.password.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+  </div>
+
+  <div class="auth-field">
+    <label for="id_password_confirm">Parolni tasdiqlash</label>
+    <input type="password" id="id_password_confirm" name="password_confirm" required autocomplete="new-password">
+    {% if form.password_confirm.errors %}<ul class="errorlist">{% for e in form.password_confirm.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+  </div>
+
+  <button type="submit" class="auth-submit">Davom etish →</button>
+</form>
+
+<div class="auth-secondary">
+  <span>Akkauntingiz bor?</span>
+  <a href="{% url 'accounts:login' %}">Kirish</a>
+</div>
+{% endblock %}
