@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none" role="img" aria-label="uzshop logo">
+  <circle cx="100" cy="100" r="100" fill="#F58220"/>
+  <path d="M58 76 L132 76 L122 122 L72 122 Z" stroke="white" stroke-width="11" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M132 76 L146 62 L154 62" stroke="white" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="82" cy="150" r="9" fill="white"/>
+  <circle cx="118" cy="150" r="9" fill="white"/>
+</svg>

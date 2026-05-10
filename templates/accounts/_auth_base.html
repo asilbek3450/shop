@@ -64,6 +64,14 @@
     font-size:13px; color: var(--ink-3);
   }
   .top-back:hover { color: var(--ink); }
+  .auth-brand {
+    display: inline-flex; align-items: center; gap: 10px;
+    margin-bottom: 22px;
+    font-family: var(--font-mono); font-size: 20px; font-weight: 600;
+    color: var(--ink); letter-spacing: -0.5px;
+  }
+  .auth-brand img { display:block; }
+  .auth-brand i { color: var(--accent); font-style: normal; }
 </style>
 {% endblock %}
 
@@ -71,6 +79,10 @@
 <a href="{% url 'index' %}" class="top-back">← Bosh sahifa</a>
 <div class="auth-shell">
   <div class="auth-card">
+    <a href="{% url 'index' %}" class="auth-brand">
+      <img src="{% static 'img/logo.svg' %}" alt="uzshop" width="42" height="42">
+      <span>uz<i>shop</i></span>
+    </a>
     {% block auth %}{% endblock %}
   </div>
 </div>
