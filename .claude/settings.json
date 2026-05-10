@@ -16,7 +16,9 @@
       "Bash(python manage.py loaddata /tmp/shop_backup.json)",
       "Bash(python -c ' *)",
       "Bash(python -c \"import secrets; print\\(secrets.token_urlsafe\\(50\\)\\)\")",
-      "Bash(python -c \"from telegrambot.handlers import common, verification; print\\('common:', common.router.name\\); print\\('verification:', verification.router.name\\); print\\('begin_verification:', verification.begin_verification\\)\")"
+      "Bash(python -c \"from telegrambot.handlers import common, verification; print\\('common:', common.router.name\\); print\\('verification:', verification.router.name\\); print\\('begin_verification:', verification.begin_verification\\)\")",
+      "Bash(python manage.py wipe_db)",
+      "Bash(python manage.py wipe_db --i-mean-it --help)"
     ]
   }
 }
