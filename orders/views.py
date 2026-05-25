@@ -1,5 +1,7 @@
 import json
+import logging
 
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
@@ -8,6 +10,9 @@ from django.views.decorators.http import require_GET, require_POST
 from catalog.models import Product
 from orders.models import Cart, CartItem, Order
 from orders.services.checkout import create_order
+
+
+logger = logging.getLogger(__name__)
 
 
 def _get_or_create_cart(user):
@@ -70,6 +75,20 @@ def submit_order(request):
             cart__user=request.user
         ).delete()
 
+    payment_url = None
+    if order.payment_method in {Order.PAYMENT_PAYME, Order.PAYMENT_CLICK} and request.user.is_authenticated:
+        from payment.services import create_invoice_with_link
+
+        try:
+            _, payment_url = create_invoice_with_link(
+                order=order,
+                user=request.user,
+                provider=order.payment_method,
+                return_url=f"{settings.SITE_URL.rstrip('/')}/orders/",
+            )
+        except Exception:
+            logger.exception("Failed to create payment link for order %s", order.code)
+
     return JsonResponse(
         {
             "ok": True,
@@ -79,7 +98,9 @@ def submit_order(request):
                 "subtotal": order.subtotal,
                 "delivery_cost": order.delivery_cost,
                 "discount": order.discount,
+                "payment_method": order.payment_method,
             },
+            "payment_url": payment_url,
         }
     )
 

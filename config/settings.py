@@ -49,8 +49,37 @@ INSTALLED_APPS = [
     "store",
     "catalog",
     "orders",
+    "payment",
     "telegrambot",
+    "paytechuz.integrations.django",
 ]
+
+PAYTECHUZ = {
+    "PAYME": {
+        "PAYME_ID": env("PAYME_ID", ""),
+        "PAYME_KEY": env("PAYME_KEY", ""),
+        "ACCOUNT_MODEL": "payment.models.Invoice",
+        "ACCOUNT_FIELD": "id",
+        "AMOUNT_FIELD": "amount",
+        "ONE_TIME_PAYMENT": True,
+        "IS_TEST_MODE": env_bool("PAYME_TEST_MODE", True),
+    },
+    "CLICK": {
+        "SERVICE_ID": env("CLICK_SERVICE_ID", ""),
+        "MERCHANT_ID": env("CLICK_MERCHANT_ID", ""),
+        "MERCHANT_USER_ID": env("CLICK_MERCHANT_USER_ID", ""),
+        "SECRET_KEY": env("CLICK_SECRET_KEY", ""),
+        "ACCOUNT_MODEL": "payment.models.Invoice",
+        "ACCOUNT_FIELD": "id",
+        "COMMISSION_PERCENT": 0.0,
+        "ONE_TIME_PAYMENT": True,
+        "IS_TEST_MODE": env_bool("CLICK_TEST_MODE", True),
+    },
+}
+
+
+
+
 
 AUTH_USER_MODEL = "accounts.User"
 AUTHENTICATION_BACKENDS = [
@@ -93,13 +122,22 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
-DATABASES = {
-    "default": dj_database_url.config(
-        default=env("DATABASE_URL", "postgres://asilbek:postgres@localhost:5432/shop"),
-        conn_max_age=600,
-        conn_health_checks=True,
-    )
-}
+DATABASE_URL = env("DATABASE_URL")
+if DATABASE_URL:
+    DATABASES = {
+        "default": dj_database_url.config(
+            default=DATABASE_URL,
+            conn_max_age=600,
+            conn_health_checks=True,
+        )
+    }
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
 # Redis Cache configuration
 REDIS_URL = env("REDIS_URL")

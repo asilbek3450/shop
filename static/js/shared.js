@@ -17,7 +17,7 @@ var PAGE_TRANSITION_KEY = 'uzshop_page_transition';
 var PAGE_TRANSITION_MIN_MS = 1000;
 var PAGE_LOADER_THEMES = {
   default: {
-    eyebrow: 'uzshop',
+    eyebrow: 'uz  shop',
     chips: ['global katalog', 'tezkor checkout', 'premium picks'],
     lines: [
       {

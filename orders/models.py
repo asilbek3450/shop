@@ -44,10 +44,12 @@ class Order(models.Model):
 
     PAYMENT_CARD = "card"
     PAYMENT_CLICK = "click"
+    PAYMENT_PAYME = "payme"
     PAYMENT_CASH = "cash"
     PAYMENT_CHOICES = [
         (PAYMENT_CARD, "Karta"),
-        (PAYMENT_CLICK, "Click/Payme"),
+        (PAYMENT_CLICK, "Click"),
+        (PAYMENT_PAYME, "Payme"),
         (PAYMENT_CASH, "Naqd"),
     ]
 
